@@ -703,15 +703,15 @@ async def get_employee_tasks(employee_id: int) -> List[dict]:
             .outerjoin(
                 TaskResult,
                 (Task.id == TaskResult.task_id)
-                & (TaskResult.employee_id == employee_id)
+                & (TaskResult.employee_id == employee_id),
             )
             .where(
                 TaskBranch.branch_id == emp.branch_id,
                 Task.is_active == True,  # noqa: E712
-                (Task.shift == 'hammasi') | (Task.shift == emp.shift)
+                (Task.shift == "hammasi")
+                | (Task.shift == emp.shift),
             )
             .order_by(Task.deadline.asc())
-            .distinct(Task.id)
         )
 
         rows = result.all()
@@ -791,7 +791,9 @@ async def get_employees_for_task(task_id: int) -> List[dict]:
         employees = []
         for emp, branch_name in rows:
             emp_dict = dict_from_row(emp)
-            emp_dict['branch_name'] = branch_name
+            emp_dict["branch_name"] = (
+                branch_name or "Noma'lum"
+            )
             employees.append(emp_dict)
 
         return employees
@@ -926,21 +928,28 @@ async def get_task_result(
 
 
 async def get_task_result_by_telegram_id(
-    task_id: int, telegram_id: int
+    task_id: int, telegram_id: int,
 ) -> Optional[dict]:
     """Telegram ID orqali natijani olish"""
     async with get_session() as session:
         result = await session.execute(
             select(TaskResult)
-            .join(Employee, TaskResult.employee_id == Employee.id)
+            .outerjoin(
+                Employee,
+                TaskResult.employee_id == Employee.id,
+            )
             .where(
                 TaskResult.task_id == task_id,
                 Employee.telegram_id == telegram_id,
-                Employee.is_active == True  # noqa: E712
+                Employee.is_active == True,  # noqa: E712
             )
         )
         task_result = result.scalar_one_or_none()
-        return dict_from_row(task_result) if task_result else None
+        return (
+            dict_from_row(task_result)
+            if task_result
+            else None
+        )
 
 
 async def has_submitted_result(
@@ -1055,13 +1064,17 @@ async def get_all_task_results(task_id: int) -> List[dict]:
         results = []
         for (
             task_result, first_name, last_name,
-            telegram_id, branch_name
+            telegram_id, branch_name,
         ) in rows:
             result_dict = dict_from_row(task_result)
-            result_dict['first_name'] = first_name
-            result_dict['last_name'] = last_name
-            result_dict['telegram_id'] = telegram_id
-            result_dict['branch_name'] = branch_name
+            result_dict["first_name"] = (
+                first_name or "Noma'lum"
+            )
+            result_dict["last_name"] = last_name or ""
+            result_dict["telegram_id"] = telegram_id
+            result_dict["branch_name"] = (
+                branch_name or "Noma'lum"
+            )
             results.append(result_dict)
 
         return results
