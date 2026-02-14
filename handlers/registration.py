@@ -1,6 +1,8 @@
 """
 Ro'yxatdan o'tish handlerlari
 """
+import html as html_lib
+
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
@@ -199,10 +201,12 @@ async def process_shift(message: Message, state: FSMContext):
         )
 
     except Exception as e:
+        safe_error = html_lib.escape(str(e))
         await message.answer(
             f"❌ <b>Xatolik yuz berdi!</b>\n\n"
-            f"Iltimos, qaytadan urinib ko'ring yoki admin bilan bog'laning.\n"
-            f"Xatolik: {str(e)}",
+            f"Iltimos, qaytadan urinib ko'ring yoki "
+            f"admin bilan bog'laning.\n"
+            f"Xatolik: {safe_error}",
             parse_mode="HTML"
         )
 

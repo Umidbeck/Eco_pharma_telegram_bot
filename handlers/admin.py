@@ -7,6 +7,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime
+import html as html_lib
 import logging
 
 from config import ADMIN_IDS
@@ -730,7 +731,8 @@ async def task_confirm_create(callback: CallbackQuery, state: FSMContext):
     except Exception as e:
         logger.error(f"Task creation error: {e}")
         await callback.message.edit_text(
-            f"❌ Vazifa yaratishda xatolik: {str(e)}\n\n"
+            f"❌ Vazifa yaratishda xatolik: "
+            f"{html_lib.escape(str(e))}\n\n"
             f"Iltimos, qaytadan urinib ko'ring.",
             parse_mode="HTML"
         )

@@ -585,7 +585,7 @@ async def report_task_stats(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("report_task_"))
 async def report_task_details(callback: CallbackQuery):
-    """Vazifa hisoboti tafsilotlari"""
+    """Vazifa hisoboti - bajarganlar/bajarmaganlar tanlash"""
     if not is_admin(callback.from_user.id):
         return
 
@@ -593,71 +593,157 @@ async def report_task_details(callback: CallbackQuery):
     task = await db.get_task(task_id)
 
     if not task:
-        await callback.answer("❌ Vazifa topilmadi!", show_alert=True)
+        await callback.answer(
+            "❌ Vazifa topilmadi!", show_alert=True
+        )
         return
 
     stats = await db.get_task_statistics(task_id)
 
-    text = f"📋 <b>{task['title']}</b>\n"
-    text += f"⏰ Deadline: {helpers.format_datetime(task['deadline'])}\n\n"
-
     total_submitted = 0
     total_not_submitted = 0
-    
-    # Vazifa yuborgan va yubormaganlarni alohida ko'rsatish
-    submitted_list = []
-    not_submitted_list = []
 
-    for bs in stats.get('branches', []):
-        branch_name = bs['name']
-        
-        # Vazifa yuborgan xodimlar (vaqtida va kechikkan)
-        all_submitted = bs.get('completed', []) + bs.get('late', [])
-        
-        for emp in all_submitted:
-            result_info = emp.get('result')
-            submitted_at = result_info.get('submitted_at') if result_info else 'N/A'
-            submitted_list.append({
-                'name': emp['name'],
-                'branch': branch_name,
-                'time': submitted_at,
-                'is_late': result_info.get('is_late', 0) if result_info else 0
-            })
-            total_submitted += 1
-        
-        # Vazifa yubormagan xodimlar
-        for emp in bs.get('not_completed', []):
-            not_submitted_list.append({
-                'name': emp['name'],
-                'branch': branch_name
-            })
-            total_not_submitted += 1
+    for bs in stats.get("branches", []):
+        all_submitted = (
+            bs.get("completed", []) + bs.get("late", [])
+        )
+        total_submitted += len(all_submitted)
+        total_not_submitted += len(
+            bs.get("not_completed", [])
+        )
 
-    # Vazifa yuborganlar ro'yxati
-    if submitted_list:
-        text += "<b>✅ Vazifa yuborgan xodimlar:</b>\n\n"
-        for emp in submitted_list:
-            time_str = helpers.format_datetime(emp['time']) if emp['time'] != 'N/A' else 'N/A'
-            status = " (⚠️ Kechikkan)" if emp['is_late'] else ""
-            text += f"🏢 {emp['branch']}\n"
-            text += f"👤 {emp['name']}{status}\n"
-            text += f"🕐 {time_str}\n\n"
-    
-    # Vazifa yubormaganlar ro'yxati
-    if not_submitted_list:
-        text += "<b>❌ Vazifa yubormagan xodimlar:</b>\n\n"
-        for emp in not_submitted_list:
-            text += f"🏢 {emp['branch']}\n"
-            text += f"👤 {emp['name']}\n\n"
-
-    text += f"<b>Jami:</b>\n"
-    text += f"✅ Yuborgan: {total_submitted} ta\n"
-    text += f"❌ Yubormagan: {total_not_submitted} ta"
+    msg = (
+        f"📋 <b>{task['title']}</b>\n"
+        f"⏰ Deadline: "
+        f"{helpers.format_datetime(task['deadline'])}\n\n"
+        f"✅ Bajarganlar: {total_submitted} ta\n"
+        f"❌ Bajarmaganlar: {total_not_submitted} ta\n\n"
+        f"Batafsil ko'rish uchun tanlang:"
+    )
 
     await callback.message.edit_text(
-        text,
-        reply_markup=admin_kb.get_task_report_back_keyboard(),
-        parse_mode="HTML"
+        msg,
+        reply_markup=admin_kb.get_task_report_options_keyboard(
+            task_id
+        ),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data.startswith("report_submitted_"))
+async def report_submitted(callback: CallbackQuery):
+    """Vazifani bajargan xodimlar ro'yxati"""
+    if not is_admin(callback.from_user.id):
+        return
+
+    task_id = int(callback.data.split("_")[2])
+    task = await db.get_task(task_id)
+
+    if not task:
+        await callback.answer(
+            "❌ Vazifa topilmadi!", show_alert=True
+        )
+        return
+
+    stats = await db.get_task_statistics(task_id)
+
+    msg = (
+        f"📋 <b>{task['title']}</b>\n"
+        f"⏰ Deadline: "
+        f"{helpers.format_datetime(task['deadline'])}\n\n"
+        f"<b>✅ Vazifa yuborgan xodimlar:</b>\n\n"
+    )
+
+    count = 0
+    for bs in stats.get("branches", []):
+        branch_name = bs["name"]
+        all_submitted = (
+            bs.get("completed", []) + bs.get("late", [])
+        )
+        for emp in all_submitted:
+            result_info = emp.get("result")
+            submitted_at = (
+                result_info.get("submitted_at")
+                if result_info
+                else "N/A"
+            )
+            is_late = (
+                result_info.get("is_late", 0)
+                if result_info
+                else 0
+            )
+            time_str = (
+                helpers.format_datetime(submitted_at)
+                if submitted_at != "N/A"
+                else "N/A"
+            )
+            status = " (⚠️ Kechikkan)" if is_late else ""
+            msg += (
+                f"🏢 {branch_name}\n"
+                f"👤 {emp['name']}{status}\n"
+                f"🕐 {time_str}\n\n"
+            )
+            count += 1
+
+    if count == 0:
+        msg += "Hali hech kim bajarmagan.\n"
+
+    msg += f"\n<b>Jami:</b> {count} ta"
+
+    await callback.message.edit_text(
+        msg,
+        reply_markup=admin_kb.get_task_report_back_keyboard(
+            task_id
+        ),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data.startswith("report_notdone_"))
+async def report_not_done(callback: CallbackQuery):
+    """Vazifani bajarmagan xodimlar ro'yxati"""
+    if not is_admin(callback.from_user.id):
+        return
+
+    task_id = int(callback.data.split("_")[2])
+    task = await db.get_task(task_id)
+
+    if not task:
+        await callback.answer(
+            "❌ Vazifa topilmadi!", show_alert=True
+        )
+        return
+
+    stats = await db.get_task_statistics(task_id)
+
+    msg = (
+        f"📋 <b>{task['title']}</b>\n"
+        f"⏰ Deadline: "
+        f"{helpers.format_datetime(task['deadline'])}\n\n"
+        f"<b>❌ Vazifa yubormagan xodimlar:</b>\n\n"
+    )
+
+    count = 0
+    for bs in stats.get("branches", []):
+        branch_name = bs["name"]
+        for emp in bs.get("not_completed", []):
+            msg += (
+                f"🏢 {branch_name}\n"
+                f"👤 {emp['name']}\n\n"
+            )
+            count += 1
+
+    if count == 0:
+        msg += "Barcha xodimlar bajargan!\n"
+
+    msg += f"\n<b>Jami:</b> {count} ta"
+
+    await callback.message.edit_text(
+        msg,
+        reply_markup=admin_kb.get_task_report_back_keyboard(
+            task_id
+        ),
+        parse_mode="HTML",
     )
 
 

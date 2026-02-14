@@ -223,12 +223,49 @@ def get_active_tasks_keyboard(tasks: List[dict]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_task_report_back_keyboard() -> InlineKeyboardMarkup:
-    """Vazifa hisobotidan orqaga qaytish"""
+def get_task_report_options_keyboard(
+    task_id: int,
+) -> InlineKeyboardMarkup:
+    """Vazifa hisoboti - bajarganlar/bajarmaganlar tanlash"""
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_to_reports")
+        InlineKeyboardButton(
+            text="✅ Bajarganlar",
+            callback_data=f"report_submitted_{task_id}",
+        ),
+        InlineKeyboardButton(
+            text="❌ Bajarmaganlar",
+            callback_data=f"report_notdone_{task_id}",
+        ),
     )
+    builder.row(
+        InlineKeyboardButton(
+            text="🔙 Orqaga",
+            callback_data="report_active_tasks",
+        )
+    )
+    return builder.as_markup()
+
+
+def get_task_report_back_keyboard(
+    task_id: int | None = None,
+) -> InlineKeyboardMarkup:
+    """Vazifa hisobotidan orqaga qaytish"""
+    builder = InlineKeyboardBuilder()
+    if task_id is not None:
+        builder.row(
+            InlineKeyboardButton(
+                text="🔙 Orqaga",
+                callback_data=f"report_task_{task_id}",
+            )
+        )
+    else:
+        builder.row(
+            InlineKeyboardButton(
+                text="🔙 Orqaga",
+                callback_data="back_to_reports",
+            )
+        )
     return builder.as_markup()
 
 
