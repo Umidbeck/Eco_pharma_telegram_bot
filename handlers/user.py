@@ -2,6 +2,7 @@
 Xodimlar uchun handlerlar - Vazifalar, Profil, Natijalar
 """
 import pytz
+import html as html_lib
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -333,7 +334,7 @@ async def process_text_result(message: Message, state: FSMContext, bot: Bot):
 
     except Exception as e:
         await message.answer(
-            f"❌ Xatolik yuz berdi: {str(e)}\n\nIltimos, qaytadan urinib ko'ring.",
+            f"❌ Xatolik yuz berdi: {html_lib.escape(str(e))}\n\nIltimos, qaytadan urinib ko'ring.",
             reply_markup=get_user_menu()
         )
 
@@ -464,7 +465,7 @@ async def process_photo_result(message: Message, state: FSMContext, bot: Bot):
 
     except Exception as e:
         await message.answer(
-            f"❌ Xatolik yuz berdi: {str(e)}\n\nIltimos, qaytadan urinib ko'ring.",
+            f"❌ Xatolik yuz berdi: {html_lib.escape(str(e))}\n\nIltimos, qaytadan urinib ko'ring.",
             reply_markup=get_user_menu()
         )
 
@@ -624,7 +625,7 @@ async def process_edit_name(message: Message, state: FSMContext):
 
     except Exception as e:
         await message.answer(
-            f"❌ Xatolik yuz berdi: {str(e)}",
+            f"❌ Xatolik yuz berdi: {html_lib.escape(str(e))}",
             reply_markup=get_user_menu()
         )
 
@@ -672,7 +673,7 @@ async def callback_select_branch(callback: CallbackQuery):
         await callback.answer("✅ Filial yangilandi!")
 
     except Exception as e:
-        await callback.answer(f"❌ Xatolik: {str(e)}", show_alert=True)
+        await callback.answer(f"❌ Xatolik: {html_lib.escape(str(e))}", show_alert=True)
 
 
 # ============= SMENANI TAHRIRLASH =============
@@ -713,7 +714,7 @@ async def callback_select_shift(callback: CallbackQuery):
         await callback.answer("✅ Smena yangilandi!")
 
     except Exception as e:
-        await callback.answer(f"❌ Xatolik: {str(e)}", show_alert=True)
+        await callback.answer(f"❌ Xatolik: {html_lib.escape(str(e))}", show_alert=True)
 
 
 @router.callback_query(F.data == "cancel_edit")

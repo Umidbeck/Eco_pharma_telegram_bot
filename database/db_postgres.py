@@ -1110,6 +1110,26 @@ async def get_all_task_results(task_id: int) -> List[dict]:
         return results
 
 
+async def has_branch_completion(task_id: int, branch_id: int, shift: str = 'hammasi') -> bool:
+    """Filialda birorta xodim vazifani bajarganligini tekshirish"""
+    async with get_session() as session:
+        query = (
+            select(func.count(TaskResult.id))
+            .join(Employee, TaskResult.employee_id == Employee.id)
+            .where(
+                TaskResult.task_id == task_id,
+                Employee.branch_id == branch_id,
+                Employee.is_active == True
+            )
+        )
+        if shift != 'hammasi':
+            query = query.where(Employee.shift == shift)
+
+        result = await session.execute(query)
+        count = result.scalar() or 0
+        return count > 0
+
+
 # ============== NOTIFICATIONS ==============
 
 async def check_notification_sent(
