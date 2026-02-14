@@ -1,0 +1,47 @@
+# ============================================================
+# Git Ignore
+# ============================================================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+.continue/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Data va Logs
+data/
+logs/
+*.db
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak

@@ -1,0 +1,98 @@
+═══════════════════════════════════════════════════════════════
+  ECO PHARM BOT - PostgreSQL - BITTA BUYRUQ!
+═══════════════════════════════════════════════════════════════
+
+🚀 ASOSIY BUYRUQ (hammasi avtomatik):
+────────────────────────────────────────────────────────────────
+./setup.sh
+
+
+🎯 Bu script bajaradi:
+  ✅ System dependencies o'rnatish
+  ✅ Python venv yaratish
+  ✅ Python packages o'rnatish
+  ✅ PostgreSQL ishga tushirish (Docker, port 5433)
+  ✅ SQLite → PostgreSQL migration
+  ✅ Systemd service yaratish
+  ✅ Bot ishga tushirish
+
+
+📋 BOT BOSHQARISH:
+────────────────────────────────────────────────────────────────
+sudo systemctl start eco-pharm-bot      # Ishga tushirish
+sudo systemctl stop eco-pharm-bot       # To'xtatish
+sudo systemctl restart eco-pharm-bot    # Qayta ishga tushirish
+sudo systemctl status eco-pharm-bot     # Status ko'rish
+sudo journalctl -u eco-pharm-bot -f     # Loglar (real-time)
+
+
+🐘 POSTGRESQL BOSHQARISH:
+────────────────────────────────────────────────────────────────
+docker-compose up -d postgres           # Ishga tushirish
+docker-compose down                     # To'xtatish
+docker-compose restart postgres         # Qayta ishga tushirish
+docker-compose logs -f postgres         # Loglar
+
+
+💾 DATABASE BACKUP & RESTORE:
+────────────────────────────────────────────────────────────────
+# Backup yaratish
+docker-compose exec postgres pg_dump -U eco_pharm eco_pharm_bot > backup.sql
+
+# Restore qilish
+docker-compose exec -T postgres psql -U eco_pharm eco_pharm_bot < backup.sql
+
+
+🔍 DATABASE TEKSHIRISH:
+────────────────────────────────────────────────────────────────
+# PostgreSQL shell
+docker-compose exec postgres psql -U eco_pharm -d eco_pharm_bot
+
+# Jadvallarni ko'rish
+\dt
+
+# Xodimlar soni
+SELECT COUNT(*) FROM employees;
+
+# Filiallar
+SELECT * FROM branches;
+
+# Chiqish
+\q
+
+
+⚙️ KONFIGURATSIYA:
+────────────────────────────────────────────────────────────────
+Port:     5433 (standart 5432 emas!)
+Host:     localhost
+Database: eco_pharm_bot
+User:     eco_pharm
+Password: eco_pharm_2024
+
+
+📁 FAYLLAR:
+────────────────────────────────────────────────────────────────
+setup.sh                      - Avtomatik setup script
+QUICK_START.md                - Tezkor qo'llanma
+README_POSTGRES.md            - To'liq qo'llanma
+docker-compose.yml            - PostgreSQL container
+migrate_sqlite_to_postgres.py - Migration script
+.env                          - Environment variables
+database/db_postgres.py       - PostgreSQL database module
+
+
+✅ TEKSHIRISH:
+────────────────────────────────────────────────────────────────
+# Bot ishlayaptimi?
+sudo systemctl status eco-pharm-bot
+
+# PostgreSQL ishlayaptimi?
+docker-compose ps
+
+# Ma'lumotlar ko'chirilganmi?
+docker-compose exec postgres psql -U eco_pharm -d eco_pharm_bot -c "SELECT COUNT(*) FROM employees;"
+
+
+═══════════════════════════════════════════════════════════════
+  HOZIR ./setup.sh ISHGA TUSHIRING!
+═══════════════════════════════════════════════════════════════

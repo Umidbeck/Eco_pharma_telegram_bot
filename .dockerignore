@@ -1,0 +1,66 @@
+# ============================================================
+# Docker Ignore - Build ga kiritilmaydigan fayllar
+# ============================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Windows fayllar
+*.bat
+*.ps1
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+
+# Local data (bu Docker volume orqali qo'shiladi)
+data/
+logs/
+*.db
+
+# Environment (bu alohida qo'shiladi)
+.env
+.env.local
+.env.*.local
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+
+# Pipenv
+Pipfile
+Pipfile.lock
