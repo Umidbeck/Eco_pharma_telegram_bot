@@ -275,9 +275,9 @@ async def get_employee_by_telegram_id(telegram_id: int) -> Optional[dict]:
     """Telegram ID orqali xodimni olish"""
     async with get_db() as db:
         cursor = await db.execute(
-            """SELECT e.*, b.name as branch_name 
-               FROM employees e 
-               JOIN branches b ON e.branch_id = b.id 
+            """SELECT e.*, b.name as branch_name
+               FROM employees e
+               JOIN branches b ON e.branch_id = b.id
                WHERE e.telegram_id = ? AND e.is_active = 1""",
             (telegram_id,)
         )
@@ -289,9 +289,9 @@ async def get_employee(employee_id: int) -> Optional[dict]:
     """ID orqali xodimni olish"""
     async with get_db() as db:
         cursor = await db.execute(
-            """SELECT e.*, b.name as branch_name 
-               FROM employees e 
-               JOIN branches b ON e.branch_id = b.id 
+            """SELECT e.*, b.name as branch_name
+               FROM employees e
+               JOIN branches b ON e.branch_id = b.id
                WHERE e.id = ?""",
             (employee_id,)
         )
@@ -314,7 +314,7 @@ async def update_employee(employee_id: int, first_name: str = None, last_name: s
         new_shift = shift if shift else emp['shift']
 
         await db.execute(
-            """UPDATE employees 
+            """UPDATE employees
                SET first_name = ?, last_name = ?, branch_id = ?, shift = ?
                WHERE id = ?""",
             (new_first_name, new_last_name, new_branch_id, new_shift, employee_id)
@@ -342,7 +342,7 @@ async def update_employee_by_telegram_id(telegram_id: int, first_name: str = Non
         new_shift = shift if shift else emp['shift']
 
         await db.execute(
-            """UPDATE employees 
+            """UPDATE employees
                SET first_name = ?, last_name = ?, branch_id = ?, shift = ?
                WHERE telegram_id = ?""",
             (new_first_name, new_last_name, new_branch_id, new_shift, telegram_id)
@@ -379,9 +379,9 @@ async def get_all_employees() -> List[dict]:
 
     async with get_db() as db:
         cursor = await db.execute(
-            """SELECT e.*, b.name as branch_name 
-               FROM employees e 
-               JOIN branches b ON e.branch_id = b.id 
+            """SELECT e.*, b.name as branch_name
+               FROM employees e
+               JOIN branches b ON e.branch_id = b.id
                WHERE e.is_active = 1"""
         )
         rows = await cursor.fetchall()
@@ -403,9 +403,9 @@ async def get_employees_by_branch(branch_id: int) -> List[dict]:
     """Filial bo'yicha xodimlarni olish"""
     async with get_db() as db:
         cursor = await db.execute(
-            """SELECT e.*, b.name as branch_name 
-               FROM employees e 
-               JOIN branches b ON e.branch_id = b.id 
+            """SELECT e.*, b.name as branch_name
+               FROM employees e
+               JOIN branches b ON e.branch_id = b.id
                WHERE e.branch_id = ? AND e.is_active = 1
                ORDER BY e.first_name""",
             (branch_id,)
@@ -495,8 +495,8 @@ async def update_task(task_id: int, title: str = None, description: str = None,
             new_deadline = task['deadline']
 
         await db.execute(
-            """UPDATE tasks 
-               SET title = ?, description = ?, task_type = ?, result_type = ?, 
+            """UPDATE tasks
+               SET title = ?, description = ?, task_type = ?, result_type = ?,
                    shift = ?, start_time = ?, deadline = ?
                WHERE id = ?""",
             (new_title, new_description, new_task_type, new_result_type,
@@ -553,8 +553,8 @@ async def get_active_tasks() -> List[dict]:
     """Faol vazifalarni olish"""
     async with get_db() as db:
         cursor = await db.execute(
-            """SELECT * FROM tasks 
-               WHERE is_active = 1 
+            """SELECT * FROM tasks
+               WHERE is_active = 1
                ORDER BY created_at DESC"""
         )
         rows = await cursor.fetchall()
@@ -575,7 +575,7 @@ async def get_employee_tasks(employee_id: int) -> List[dict]:
         branch_id, emp_shift = emp['branch_id'], emp['shift']
 
         cursor = await db.execute(
-            """SELECT DISTINCT t.*, 
+            """SELECT DISTINCT t.*,
                       CASE WHEN tr.id IS NOT NULL THEN 1 ELSE 0 END as is_completed,
                       tr.is_late
                FROM tasks t
@@ -607,7 +607,7 @@ async def get_employee_tasks_by_telegram_id(telegram_id: int) -> List[dict]:
         emp_shift = emp['shift']
 
         cursor = await db.execute(
-            """SELECT DISTINCT t.*, 
+            """SELECT DISTINCT t.*,
                       CASE WHEN tr.id IS NOT NULL THEN 1 ELSE 0 END as is_completed,
                       COALESCE(tr.is_late, 0) as is_late
                FROM tasks t
@@ -647,7 +647,7 @@ async def get_employees_for_task(task_id: int) -> List[dict]:
 
         if shift == 'hammasi':
             query = f"""
-                SELECT e.*, b.name as branch_name 
+                SELECT e.*, b.name as branch_name
                 FROM employees e
                 JOIN branches b ON e.branch_id = b.id
                 WHERE e.branch_id IN ({placeholders}) AND e.is_active = 1
@@ -655,7 +655,7 @@ async def get_employees_for_task(task_id: int) -> List[dict]:
             params = branch_ids
         else:
             query = f"""
-                SELECT e.*, b.name as branch_name 
+                SELECT e.*, b.name as branch_name
                 FROM employees e
                 JOIN branches b ON e.branch_id = b.id
                 WHERE e.branch_id IN ({placeholders}) AND e.is_active = 1 AND e.shift = ?
@@ -671,7 +671,7 @@ async def get_daily_tasks() -> List[dict]:
     """Har kunlik vazifalarni olish"""
     async with get_db() as db:
         cursor = await db.execute(
-            """SELECT * FROM tasks 
+            """SELECT * FROM tasks
                WHERE task_type = 'har_kunlik' AND is_active = 1"""
         )
         rows = await cursor.fetchall()
@@ -768,7 +768,7 @@ async def get_task_result(task_id: int, employee_id: int) -> Optional[dict]:
     """Xodimning vazifa natijasini olish"""
     async with get_db() as db:
         cursor = await db.execute(
-            """SELECT * FROM task_results 
+            """SELECT * FROM task_results
                WHERE task_id = ? AND employee_id = ?""",
             (task_id, employee_id)
         )
@@ -788,7 +788,7 @@ async def get_task_result_by_telegram_id(task_id: int, telegram_id: int) -> Opti
             return None
 
         cursor = await db.execute(
-            """SELECT * FROM task_results 
+            """SELECT * FROM task_results
                WHERE task_id = ? AND employee_id = ?""",
             (task_id, emp['id'])
         )
@@ -811,7 +811,7 @@ async def get_task_statistics(task_id: int) -> dict:
             return {}
 
         cursor = await db.execute(
-            """SELECT DISTINCT b.id, b.name 
+            """SELECT DISTINCT b.id, b.name
                FROM branches b
                JOIN task_branches tb ON b.id = tb.branch_id
                WHERE tb.task_id = ?""",
@@ -850,7 +850,7 @@ async def get_task_statistics(task_id: int) -> dict:
                 telegram_id = emp['telegram_id']
 
                 cursor = await db.execute(
-                    """SELECT tr.*, tr.result_text, tr.result_photo_id 
+                    """SELECT tr.*, tr.result_text, tr.result_photo_id
                        FROM task_results tr
                        WHERE tr.task_id = ? AND tr.employee_id = ?""",
                     (task_id, emp_id)
@@ -889,6 +889,24 @@ async def get_task_statistics(task_id: int) -> dict:
         result["branches"].sort(key=lambda x: (extract_number(x['name']), x['name']))
 
         return result
+
+
+async def has_branch_completion(task_id: int, branch_id: int, shift: str = 'hammasi') -> bool:
+    """Filialda birorta xodim vazifani bajarganligini tekshirish"""
+    async with get_db() as db_conn:
+        if shift == 'hammasi':
+            shift_condition = "1=1"
+        else:
+            shift_condition = f"e.shift = '{shift}'"
+
+        cursor = await db_conn.execute(
+            f"""SELECT COUNT(*) as cnt FROM task_results tr
+                JOIN employees e ON tr.employee_id = e.id
+                WHERE tr.task_id = ? AND e.branch_id = ? AND e.is_active = 1 AND {shift_condition}""",
+            (task_id, branch_id)
+        )
+        row = await cursor.fetchone()
+        return row['cnt'] > 0 if row else False
 
 
 async def get_all_task_results(task_id: int) -> List[dict]:
@@ -947,7 +965,7 @@ async def check_notification_sent(task_id: int, employee_id: int, notification_t
         await _ensure_notifications_table()
         async with get_db() as db:
             cursor = await db.execute(
-                """SELECT id FROM sent_notifications 
+                """SELECT id FROM sent_notifications
                    WHERE task_id = ? AND employee_id = ? AND notification_type = ?""",
                 (task_id, employee_id, notification_type)
             )

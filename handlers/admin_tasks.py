@@ -132,52 +132,53 @@ async def task_stats(callback: CallbackQuery):
 
     total_submitted = 0
     total_not_submitted = 0
-    
-    # Vazifa yuborgan va yubormaganlarni alohida ko'rsatish
-    submitted_list = []
-    not_submitted_list = []
+
+    # Vazifa yuborganlar (filial bo'yicha)
+    submitted_branches = []
+    not_submitted_branches = []
 
     for bs in stats.get('branches', []):
         branch_name = bs['name']
-        
-        # Vazifa yuborgan xodimlar (vaqtida va kechikkan)
         all_submitted = bs.get('completed', []) + bs.get('late', [])
-        
-        for emp in all_submitted:
-            result_info = emp.get('result')
-            submitted_at = result_info.get('submitted_at') if result_info else 'N/A'
-            submitted_list.append({
-                'name': emp['name'],
-                'branch': branch_name,
-                'time': submitted_at,
-                'is_late': result_info.get('is_late', 0) if result_info else 0
-            })
-            total_submitted += 1
-        
-        # Vazifa yubormagan xodimlar
-        for emp in bs.get('not_completed', []):
-            not_submitted_list.append({
-                'name': emp['name'],
-                'branch': branch_name
-            })
-            total_not_submitted += 1
+        has_completed = len(all_submitted) > 0
 
-    # Vazifa yuborganlar ro'yxati
-    if submitted_list:
-        text += "<b>✅ Vazifa yuborgan xodimlar:</b>\n\n"
-        for emp in submitted_list:
-            time_str = helpers.format_datetime(emp['time']) if emp['time'] != 'N/A' else 'N/A'
-            status = " (⚠️ Kechikkan)" if emp['is_late'] else ""
-            text += f"🏢 {emp['branch']}\n"
-            text += f"👤 {emp['name']}{status}\n"
-            text += f"🕐 {time_str}\n\n"
-    
-    # Vazifa yubormaganlar ro'yxati
-    if not_submitted_list:
-        text += "<b>❌ Vazifa yubormagan xodimlar:</b>\n\n"
-        for emp in not_submitted_list:
-            text += f"🏢 {emp['branch']}\n"
-            text += f"👤 {emp['name']}\n\n"
+        if all_submitted:
+            submitted_branches.append({
+                'name': branch_name,
+                'employees': all_submitted
+            })
+            total_submitted += len(all_submitted)
+
+        # Bajarmaganlar: faqat filialda hech kim bajarmagan bo'lsa
+        if not has_completed and bs.get('not_completed'):
+            not_submitted_branches.append({
+                'name': branch_name,
+                'employees': bs['not_completed']
+            })
+            total_not_submitted += len(bs['not_completed'])
+
+    # Bajarganlar
+    if submitted_branches:
+        text += "<b>✅ Vazifa yuborgan xodimlar:</b>\n"
+        for branch in submitted_branches:
+            text += f"\n🏢 <b>{branch['name']}</b>\n"
+            for emp in branch['employees']:
+                result_info = emp.get('result')
+                submitted_at = result_info.get('submitted_at') if result_info else 'N/A'
+                is_late = result_info.get('is_late', 0) if result_info else 0
+                time_str = helpers.format_datetime(submitted_at) if submitted_at != 'N/A' else 'N/A'
+                status = " ⚠️" if is_late else " ✅"
+                text += f"  👤 {emp['name']}{status} — {time_str}\n"
+        text += "\n"
+
+    # Bajarmaganlar
+    if not_submitted_branches:
+        text += "<b>❌ Vazifa yubormagan xodimlar:</b>\n"
+        for branch in not_submitted_branches:
+            text += f"\n🏢 <b>{branch['name']}</b>\n"
+            for emp in branch['employees']:
+                text += f"  👤 {emp['name']}\n"
+        text += "\n"
 
     text += f"<b>Jami:</b>\n"
     text += f"✅ Yuborgan: {total_submitted} ta\n"
@@ -602,22 +603,30 @@ async def report_task_details(callback: CallbackQuery):
 
     total_submitted = 0
     total_not_submitted = 0
+    branches_completed = 0
+    branches_not_completed = 0
 
     for bs in stats.get("branches", []):
         all_submitted = (
             bs.get("completed", []) + bs.get("late", [])
         )
+        has_completed = len(all_submitted) > 0
         total_submitted += len(all_submitted)
-        total_not_submitted += len(
-            bs.get("not_completed", [])
-        )
+
+        # Bajarmaganlar faqat filialda hech kim bajarmagan bo'lsa
+        if not has_completed and bs.get("not_completed"):
+            total_not_submitted += len(bs.get("not_completed", []))
+            branches_not_completed += 1
+
+        if has_completed:
+            branches_completed += 1
 
     msg = (
         f"📋 <b>{task['title']}</b>\n"
         f"⏰ Deadline: "
         f"{helpers.format_datetime(task['deadline'])}\n\n"
-        f"✅ Bajarganlar: {total_submitted} ta\n"
-        f"❌ Bajarmaganlar: {total_not_submitted} ta\n\n"
+        f"✅ Bajarganlar: {total_submitted} ta ({branches_completed} filial)\n"
+        f"❌ Bajarmaganlar: {total_not_submitted} ta ({branches_not_completed} filial)\n\n"
         f"Batafsil ko'rish uchun tanlang:"
     )
 
@@ -632,7 +641,7 @@ async def report_task_details(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("report_submitted_"))
 async def report_submitted(callback: CallbackQuery):
-    """Vazifani bajargan xodimlar ro'yxati"""
+    """Vazifani bajargan xodimlar ro'yxati (filial bo'yicha guruhlangan)"""
     if not is_admin(callback.from_user.id):
         return
 
@@ -651,15 +660,21 @@ async def report_submitted(callback: CallbackQuery):
         f"📋 <b>{task['title']}</b>\n"
         f"⏰ Deadline: "
         f"{helpers.format_datetime(task['deadline'])}\n\n"
-        f"<b>✅ Vazifa yuborgan xodimlar:</b>\n\n"
+        f"<b>✅ Vazifa yuborgan xodimlar:</b>\n"
     )
 
     count = 0
+    branch_count = 0
     for bs in stats.get("branches", []):
         branch_name = bs["name"]
         all_submitted = (
             bs.get("completed", []) + bs.get("late", [])
         )
+        if not all_submitted:
+            continue
+
+        branch_count += 1
+        msg += f"\n🏢 <b>{branch_name}</b>\n"
         for emp in all_submitted:
             result_info = emp.get("result")
             submitted_at = (
@@ -677,18 +692,14 @@ async def report_submitted(callback: CallbackQuery):
                 if submitted_at != "N/A"
                 else "N/A"
             )
-            status = " (⚠️ Kechikkan)" if is_late else ""
-            msg += (
-                f"🏢 {branch_name}\n"
-                f"👤 {emp['name']}{status}\n"
-                f"🕐 {time_str}\n\n"
-            )
+            status = " ⚠️" if is_late else " ✅"
+            msg += f"  👤 {emp['name']}{status} — {time_str}\n"
             count += 1
 
     if count == 0:
-        msg += "Hali hech kim bajarmagan.\n"
+        msg += "\nHali hech kim bajarmagan.\n"
 
-    msg += f"\n<b>Jami:</b> {count} ta"
+    msg += f"\n<b>Jami:</b> {count} ta xodim ({branch_count} ta filial)"
 
     await callback.message.edit_text(
         msg,
@@ -701,7 +712,7 @@ async def report_submitted(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("report_notdone_"))
 async def report_not_done(callback: CallbackQuery):
-    """Vazifani bajarmagan xodimlar ro'yxati"""
+    """Vazifani bajarmagan xodimlar ro'yxati (filial bo'yicha guruhlangan)"""
     if not is_admin(callback.from_user.id):
         return
 
@@ -720,23 +731,33 @@ async def report_not_done(callback: CallbackQuery):
         f"📋 <b>{task['title']}</b>\n"
         f"⏰ Deadline: "
         f"{helpers.format_datetime(task['deadline'])}\n\n"
-        f"<b>❌ Vazifa yubormagan xodimlar:</b>\n\n"
+        f"<b>❌ Vazifa yubormagan xodimlar:</b>\n"
     )
 
     count = 0
+    branch_count = 0
     for bs in stats.get("branches", []):
         branch_name = bs["name"]
-        for emp in bs.get("not_completed", []):
-            msg += (
-                f"🏢 {branch_name}\n"
-                f"👤 {emp['name']}\n\n"
-            )
+
+        # Agar filialda birorta xodim bajargan bo'lsa, bu filialni o'tkazib yuborish
+        has_completed = len(bs.get("completed", [])) > 0 or len(bs.get("late", [])) > 0
+        if has_completed:
+            continue
+
+        not_done = bs.get("not_completed", [])
+        if not not_done:
+            continue
+
+        branch_count += 1
+        msg += f"\n🏢 <b>{branch_name}</b>\n"
+        for emp in not_done:
+            msg += f"  👤 {emp['name']}\n"
             count += 1
 
     if count == 0:
-        msg += "Barcha xodimlar bajargan!\n"
+        msg += "\n✅ Barcha filiallardan vazifa bajarilgan!\n"
 
-    msg += f"\n<b>Jami:</b> {count} ta"
+    msg += f"\n<b>Jami:</b> {count} ta xodim ({branch_count} ta filial)"
 
     await callback.message.edit_text(
         msg,

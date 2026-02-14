@@ -57,10 +57,29 @@ async def check_task_notifications(bot):
 
                 employees = await db.get_employees_for_task(task['id'])
 
+                # Filial bo'yicha xodimlarni guruhlash
+                branch_employees = {}
+                for emp in employees:
+                    bid = emp.get('branch_id') or emp.get('branch_name', 'unknown')
+                    if bid not in branch_employees:
+                        branch_employees[bid] = []
+                    branch_employees[bid].append(emp)
+
+                # Har bir filial uchun bajarilganligini tekshirish
+                branch_has_completion = {}
+                for bid in branch_employees:
+                    branch_has_completion[bid] = await db.has_branch_completion(
+                        task['id'], bid, task['shift']
+                    )
+
                 # Vazifa boshlanganda ogohlantirish (faqat 1 marta)
                 time_diff = abs((start_time - now).total_seconds())
                 if time_diff <= 90:  # 90 soniya oraliqda tekshirish
                     for emp in employees:
+                        bid = emp.get('branch_id') or emp.get('branch_name', 'unknown')
+                        # Agar filialda birorta xodim bajargan bo'lsa, xabar yubormasin
+                        if branch_has_completion.get(bid, False):
+                            continue
                         result = await db.get_task_result(task['id'], emp['id'])
                         if not result:
                             # Avval yuborilganligini tekshirish
@@ -88,6 +107,10 @@ async def check_task_notifications(bot):
                 time_to_deadline = (deadline - now).total_seconds()
                 if 1680 <= time_to_deadline <= 1920:  # 28-32 daqiqa oralig'ida
                     for emp in employees:
+                        bid = emp.get('branch_id') or emp.get('branch_name', 'unknown')
+                        # Agar filialda birorta xodim bajargan bo'lsa, xabar yubormasin
+                        if branch_has_completion.get(bid, False):
+                            continue
                         result = await db.get_task_result(task['id'], emp['id'])
                         if not result:
                             # Avval yuborilganligini tekshirish
@@ -121,7 +144,7 @@ async def check_task_notifications(bot):
                     if not admin_notified:
                         # Filial bo'yicha xodimlarni guruhlash
                         stats = await db.get_task_statistics(task['id'])
-                        
+
                         # Faqat vazifa yubormaganlarni ko'rsatish
                         report_text = f"📊 <b>Vazifa muddati yakunlandi!</b>\n\n"
                         report_text += f"📋 {task['title']}\n"
@@ -131,7 +154,11 @@ async def check_task_notifications(bot):
                         branches_with_incomplete = []
 
                         for branch_stat in stats.get('branches', []):
-                            # Faqat vazifa yubormaganlarni ko'rsatish
+                            # Filialda birorta xodim bajargan bo'lsa, bu filialni o'tkazib yuborish
+                            has_completed = len(branch_stat['completed']) > 0 or len(branch_stat['late']) > 0
+                            if has_completed:
+                                continue
+
                             not_completed = branch_stat['not_completed']
                             if not_completed:
                                 branches_with_incomplete.append(branch_stat)
@@ -143,10 +170,10 @@ async def check_task_notifications(bot):
                                 report_text += f"\n🏢 <b>{branch_stat['name']}</b>\n"
                                 for emp_info in branch_stat['not_completed']:
                                     report_text += f"  • {emp_info['name']}\n"
-                            
+
                             report_text += f"\n<b>Jami yubormaganlar: {total_not_completed} ta</b>"
                         else:
-                            report_text += "✅ <b>Barcha xodimlar vazifani bajargan!</b>"
+                            report_text += "✅ <b>Barcha filiallardan vazifa bajarilgan!</b>"
 
                         for admin_id in ADMIN_IDS:
                             try:
@@ -159,19 +186,19 @@ async def check_task_notifications(bot):
 
                     # Filial bo'yicha guruhlangan xodimlar ro'yxatini olish
                     stats = await db.get_task_statistics(task['id'])
-                    
-                    # Filial bo'yicha: agar bitta xodim vazifa bajargan bo'lsa, 
+
+                    # Filial bo'yicha: agar bitta xodim vazifa bajargan bo'lsa,
                     # o'sha filialdagi boshqalarga xabar yuborilmasin
                     for branch_stat in stats.get('branches', []):
                         # Agar filialdan hech bo'lmaganda 1 ta xodim vazifa bajargan bo'lsa
                         has_completed_in_branch = len(branch_stat['completed']) > 0 or len(branch_stat['late']) > 0
-                        
+
                         if not has_completed_in_branch:
                             # Faqat hech kim vazifa bajarmagan filiallar uchun xabar yuborish
                             for emp_info in branch_stat['not_completed']:
                                 emp_id = emp_info['id']
                                 telegram_id = emp_info['telegram_id']
-                                
+
                                 # Avval yuborilganligini tekshirish
                                 already_sent = await db.check_notification_sent(
                                     task['id'], emp_id, 'deadline_ended'
