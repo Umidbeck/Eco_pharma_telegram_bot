@@ -119,12 +119,32 @@ done
 echo ""
 echo "5️⃣ Migrating data from SQLite to PostgreSQL..."
 echo "------------------------------------------------------------"
-if [ -f "server_data/data/bot.db" ]; then
-    python3 migrate_sqlite_to_postgres.py
+
+# SQLite faylini qidirish (bir nechta joydan)
+SQLITE_FILE=""
+for path in "server_data/data/bot.db" "data/bot.db" "/app/data/bot.db" "bot.db"; do
+    if [ -f "$path" ]; then
+        SQLITE_FILE="$path"
+        echo -e "${GREEN}✅ SQLite database topildi: $path${NC}"
+        break
+    fi
+done
+
+if [ -n "$SQLITE_FILE" ]; then
+    # Migration scriptga to'g'ri path berish
+    SQLITE_PATH="$SQLITE_FILE" python3 migrate_sqlite_to_postgres.py
     echo -e "${GREEN}✅ Data migration completed${NC}"
 else
-    echo -e "${YELLOW}⚠️  SQLite database not found (server_data/data/bot.db)${NC}"
-    echo -e "${YELLOW}   Creating empty PostgreSQL database...${NC}"
+    echo -e "${YELLOW}⚠️  SQLite database topilmadi!${NC}"
+    echo -e "${YELLOW}   Qidirilgan joylar: server_data/data/bot.db, data/bot.db, /app/data/bot.db, bot.db${NC}"
+    echo ""
+    echo -e "${YELLOW}   Agar eski serverdagi ma'lumotlarni ko'chirmoqchi bo'lsangiz:${NC}"
+    echo -e "${YELLOW}   1. Eski serverdan bot.db faylini ko'chiring:${NC}"
+    echo -e "${YELLOW}      scp eski_server:/path/to/data/bot.db ./server_data/data/bot.db${NC}"
+    echo -e "${YELLOW}   2. Migration scriptni qayta ishga tushiring:${NC}"
+    echo -e "${YELLOW}      source venv/bin/activate && python3 migrate_sqlite_to_postgres.py${NC}"
+    echo ""
+    echo -e "${YELLOW}   Hozircha bo'sh database yaratilmoqda...${NC}"
     python3 -c "import asyncio; from database.db_postgres import init_db; asyncio.run(init_db())"
     echo -e "${GREEN}✅ Empty database created${NC}"
 fi
