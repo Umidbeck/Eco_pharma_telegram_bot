@@ -35,21 +35,45 @@ if [ -z "$BOT_TOKEN" ] || [ "$BOT_TOKEN" = "your_bot_token_here" ]; then
 fi
 
 echo ""
-echo "1️⃣ Installing system dependencies..."
+echo "1️⃣ Checking system dependencies..."
 echo "------------------------------------------------------------"
+
+# Python venv va pip o'rnatish (docker o'rnatilganini taxmin qilamiz)
 if command -v apt-get &> /dev/null; then
-    sudo apt-get update
-    sudo apt-get install -y python3-pip python3-venv docker.io docker-compose
-elif command -v yum &> /dev/null; then
-    sudo yum install -y python3-pip docker docker-compose
+    sudo apt-get update -qq
+    sudo apt-get install -y python3-pip python3-venv
 fi
 
-# Enable Docker
-sudo systemctl enable docker
-sudo systemctl start docker
-sudo usermod -aG docker $USER
+# Docker mavjudligini tekshirish
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}❌ Docker o'rnatilmagan! Iltimos, avval Docker o'rnating.${NC}"
+    echo "  curl -fsSL https://get.docker.com | sh"
+    exit 1
+fi
 
-echo -e "${GREEN}✅ System dependencies installed${NC}"
+# docker-compose yoki docker compose mavjudligini tekshirish
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD="docker compose"
+else
+    echo -e "${YELLOW}⚠️  docker-compose topilmadi, o'rnatilmoqda...${NC}"
+    sudo apt-get install -y docker-compose-plugin 2>/dev/null || pip3 install docker-compose
+    if docker compose version &> /dev/null; then
+        COMPOSE_CMD="docker compose"
+    else
+        COMPOSE_CMD="docker-compose"
+    fi
+fi
+
+echo -e "${GREEN}✅ Docker: $(docker --version)${NC}"
+echo -e "${GREEN}✅ Compose: $COMPOSE_CMD${NC}"
+
+# Docker ishlayotganligini tekshirish
+sudo systemctl enable docker 2>/dev/null || true
+sudo systemctl start docker 2>/dev/null || true
+
+echo -e "${GREEN}✅ System dependencies OK${NC}"
 
 echo ""
 echo "2️⃣ Creating Python virtual environment..."
@@ -72,15 +96,15 @@ echo -e "${GREEN}✅ Python packages installed${NC}"
 echo ""
 echo "4️⃣ Starting PostgreSQL with Docker..."
 echo "------------------------------------------------------------"
-docker-compose down 2>/dev/null || true
-docker-compose up -d postgres
+$COMPOSE_CMD down 2>/dev/null || true
+$COMPOSE_CMD up -d postgres
 
 echo "Waiting for PostgreSQL to be ready..."
 sleep 5
 
 # Check if PostgreSQL is ready
 for i in {1..30}; do
-    if docker-compose exec -T postgres pg_isready -U eco_pharm -d eco_pharm_bot &> /dev/null; then
+    if $COMPOSE_CMD exec -T postgres pg_isready -U eco_pharm -d eco_pharm_bot &> /dev/null; then
         echo -e "${GREEN}✅ PostgreSQL is ready${NC}"
         break
     fi
@@ -146,8 +170,8 @@ echo "  • Stop bot:     sudo systemctl stop eco-pharm-bot"
 echo "  • Bot status:   sudo systemctl status eco-pharm-bot"
 echo "  • View logs:    sudo journalctl -u eco-pharm-bot -f"
 echo ""
-echo "  • PostgreSQL:   docker-compose logs -f postgres"
-echo "  • DB shell:     docker-compose exec postgres psql -U eco_pharm -d eco_pharm_bot"
+echo "  • PostgreSQL:   $COMPOSE_CMD logs -f postgres"
+echo "  • DB shell:     $COMPOSE_CMD exec postgres psql -U eco_pharm -d eco_pharm_bot"
 echo ""
 echo "🎯 Starting bot now..."
 sudo systemctl start eco-pharm-bot
