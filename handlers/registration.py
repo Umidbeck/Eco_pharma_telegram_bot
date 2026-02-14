@@ -178,13 +178,28 @@ async def process_shift(message: Message, state: FSMContext):
     data = await state.get_data()
 
     try:
-        await db.create_employee(
-            telegram_id=message.from_user.id,
-            first_name=data['first_name'],
-            last_name=data['last_name'],
-            branch_id=data['branch_id'],
-            shift=shift_key
+        # Agar foydalanuvchi allaqachon mavjud bo'lsa,
+        # ma'lumotlarni yangilash (migration dan yoki
+        # oldingi ro'yxatdan qolgan bo'lishi mumkin)
+        existing = await db.get_employee_by_telegram_id(
+            message.from_user.id
         )
+        if existing:
+            await db.update_employee(
+                existing['id'],
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                branch_id=data['branch_id'],
+                shift=shift_key,
+            )
+        else:
+            await db.create_employee(
+                telegram_id=message.from_user.id,
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                branch_id=data['branch_id'],
+                shift=shift_key,
+            )
 
         shift_name = SHIFTS.get(shift_key, shift_key)
 
@@ -192,12 +207,14 @@ async def process_shift(message: Message, state: FSMContext):
             f"✅ <b>Tabriklaymiz!</b>\n\n"
             f"Siz muvaffaqiyatli ro'yxatdan o'tdingiz.\n\n"
             f"👤 <b>Ma'lumotlaringiz:</b>\n"
-            f"• Ism: {data['first_name']} {data['last_name']}\n"
+            f"• Ism: {data['first_name']} "
+            f"{data['last_name']}\n"
             f"• Filial: {data['branch_name']}\n"
             f"• Smena: {shift_name}\n\n"
-            f"Endi siz vazifalarni olishingiz va bajarishingiz mumkin!",
+            f"Endi siz vazifalarni olishingiz va "
+            f"bajarishingiz mumkin!",
             reply_markup=get_user_menu(),
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
     except Exception as e:
@@ -207,7 +224,7 @@ async def process_shift(message: Message, state: FSMContext):
             f"Iltimos, qaytadan urinib ko'ring yoki "
             f"admin bilan bog'laning.\n"
             f"Xatolik: {safe_error}",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
     await state.clear()

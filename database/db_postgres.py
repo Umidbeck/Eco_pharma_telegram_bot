@@ -357,22 +357,27 @@ async def create_employee(
 
 
 async def get_employee_by_telegram_id(
-    telegram_id: int
+    telegram_id: int,
 ) -> Optional[dict]:
     """Telegram ID orqali xodimni olish"""
     async with get_session() as session:
         result = await session.execute(
-            select(Employee, Branch.name.label('branch_name'))
-            .join(Branch, Employee.branch_id == Branch.id)
+            select(
+                Employee,
+                Branch.name.label("branch_name"),
+            )
+            .outerjoin(
+                Branch, Employee.branch_id == Branch.id
+            )
             .where(
                 Employee.telegram_id == telegram_id,
-                Employee.is_active == True  # noqa: E712
+                Employee.is_active == True,  # noqa: E712
             )
         )
         row = result.first()
         if row:
             emp = dict_from_row(row[0])
-            emp['branch_name'] = row[1]
+            emp["branch_name"] = row[1] or "Noma'lum"
             return emp
         return None
 
@@ -381,14 +386,19 @@ async def get_employee(employee_id: int) -> Optional[dict]:
     """ID orqali xodimni olish"""
     async with get_session() as session:
         result = await session.execute(
-            select(Employee, Branch.name.label('branch_name'))
-            .join(Branch, Employee.branch_id == Branch.id)
+            select(
+                Employee,
+                Branch.name.label("branch_name"),
+            )
+            .outerjoin(
+                Branch, Employee.branch_id == Branch.id
+            )
             .where(Employee.id == employee_id)
         )
         row = result.first()
         if row:
             emp = dict_from_row(row[0])
-            emp['branch_name'] = row[1]
+            emp["branch_name"] = row[1] or "Noma'lum"
             return emp
         return None
 
@@ -478,15 +488,20 @@ async def get_all_employees() -> List[dict]:
     """Barcha faol xodimlarni olish"""
     async with get_session() as session:
         result = await session.execute(
-            select(Employee, Branch.name.label('branch_name'))
-            .join(Branch, Employee.branch_id == Branch.id)
+            select(
+                Employee,
+                Branch.name.label("branch_name"),
+            )
+            .outerjoin(
+                Branch, Employee.branch_id == Branch.id
+            )
             .where(Employee.is_active == True)  # noqa: E712
         )
         rows = result.all()
         employees = []
         for row in rows:
             emp = dict_from_row(row[0])
-            emp['branch_name'] = row[1]
+            emp["branch_name"] = row[1] or "Noma'lum"
             employees.append(emp)
 
     employees.sort(
@@ -498,15 +513,22 @@ async def get_all_employees() -> List[dict]:
     return employees
 
 
-async def get_employees_by_branch(branch_id: int) -> List[dict]:
+async def get_employees_by_branch(
+    branch_id: int,
+) -> List[dict]:
     """Filial bo'yicha xodimlarni olish"""
     async with get_session() as session:
         result = await session.execute(
-            select(Employee, Branch.name.label('branch_name'))
-            .join(Branch, Employee.branch_id == Branch.id)
+            select(
+                Employee,
+                Branch.name.label("branch_name"),
+            )
+            .outerjoin(
+                Branch, Employee.branch_id == Branch.id
+            )
             .where(
                 Employee.branch_id == branch_id,
-                Employee.is_active == True  # noqa: E712
+                Employee.is_active == True,  # noqa: E712
             )
             .order_by(Employee.first_name)
         )
@@ -514,7 +536,7 @@ async def get_employees_by_branch(branch_id: int) -> List[dict]:
         employees = []
         for row in rows:
             emp = dict_from_row(row[0])
-            emp['branch_name'] = row[1]
+            emp["branch_name"] = row[1] or "Noma'lum"
             employees.append(emp)
         return employees
 
@@ -747,11 +769,16 @@ async def get_employees_for_task(task_id: int) -> List[dict]:
             return []
 
         query = (
-            select(Employee, Branch.name.label('branch_name'))
-            .join(Branch, Employee.branch_id == Branch.id)
+            select(
+                Employee,
+                Branch.name.label("branch_name"),
+            )
+            .outerjoin(
+                Branch, Employee.branch_id == Branch.id
+            )
             .where(
                 Employee.branch_id.in_(branch_ids),
-                Employee.is_active == True  # noqa: E712
+                Employee.is_active == True,  # noqa: E712
             )
         )
 
@@ -1011,10 +1038,15 @@ async def get_all_task_results(task_id: int) -> List[dict]:
                 Employee.first_name,
                 Employee.last_name,
                 Employee.telegram_id,
-                Branch.name.label('branch_name')
+                Branch.name.label("branch_name"),
             )
-            .join(Employee, TaskResult.employee_id == Employee.id)
-            .join(Branch, Employee.branch_id == Branch.id)
+            .outerjoin(
+                Employee,
+                TaskResult.employee_id == Employee.id,
+            )
+            .outerjoin(
+                Branch, Employee.branch_id == Branch.id
+            )
             .where(TaskResult.task_id == task_id)
             .order_by(TaskResult.submitted_at.asc())
         )
@@ -1096,13 +1128,20 @@ async def get_task_result_by_id(result_id: int) -> Optional[dict]:
                 TaskResult,
                 Employee.first_name,
                 Employee.last_name,
-                Branch.name.label('branch_name'),
-                Task.title.label('task_title'),
-                Task.id.label('task_id_ref')
+                Branch.name.label("branch_name"),
+                Task.title.label("task_title"),
+                Task.id.label("task_id_ref"),
             )
-            .join(Employee, TaskResult.employee_id == Employee.id)
-            .join(Branch, Employee.branch_id == Branch.id)
-            .join(Task, TaskResult.task_id == Task.id)
+            .outerjoin(
+                Employee,
+                TaskResult.employee_id == Employee.id,
+            )
+            .outerjoin(
+                Branch, Employee.branch_id == Branch.id
+            )
+            .outerjoin(
+                Task, TaskResult.task_id == Task.id
+            )
             .where(TaskResult.id == result_id)
         )
         row = result.first()
@@ -1110,11 +1149,11 @@ async def get_task_result_by_id(result_id: int) -> Optional[dict]:
             return None
 
         result_dict = dict_from_row(row[0])
-        result_dict['first_name'] = row[1]
-        result_dict['last_name'] = row[2]
-        result_dict['branch_name'] = row[3]
-        result_dict['title'] = row[4]
-        result_dict['task_id'] = row[5]
+        result_dict["first_name"] = row[1] or "Noma'lum"
+        result_dict["last_name"] = row[2] or ""
+        result_dict["branch_name"] = row[3] or "Noma'lum"
+        result_dict["title"] = row[4] or "Noma'lum"
+        result_dict["task_id"] = row[5]
         return result_dict
 
 
