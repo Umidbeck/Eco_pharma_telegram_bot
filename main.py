@@ -83,7 +83,7 @@ async def on_startup():
     """Bot ishga tushganda"""
     logger.info("=" * 60)
     logger.info("🚀 Eco Pharm Bot ishga tushmoqda...")
-    logger.info(f"📅 Vaqt: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"📅 Vaqt: {datetime.now(pytz.timezone(TIMEZONE)).strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info(f"🌍 Timezone: {TIMEZONE}")
     logger.info(f"👨‍💼 Admin IDs: {ADMIN_IDS}")
 
@@ -172,7 +172,7 @@ async def main():
                     chat_id=admin_id,
                     text=(
                         "🟢 <b>Bot ishga tushdi!</b>\n\n"
-                        f"📅 Vaqt: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                        f"📅 Vaqt: {datetime.now(pytz.timezone(TIMEZONE)).strftime('%Y-%m-%d %H:%M:%S')}\n"
                         f"🖥 Platform: Linux Server\n"
                         f"🐳 Docker: Active"
                     )

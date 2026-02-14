@@ -288,7 +288,7 @@ async def process_text_result(message: Message, state: FSMContext, bot: Bot):
                 else:
                     deadline = datetime.fromisoformat(deadline_str)
 
-                if datetime.now() > deadline:
+                if helpers.now() > deadline:
                     is_late = True
             except Exception:
                 pass
@@ -420,7 +420,7 @@ async def process_photo_result(message: Message, state: FSMContext, bot: Bot):
                 else:
                     deadline = datetime.fromisoformat(deadline_str)
 
-                if datetime.now() > deadline:
+                if helpers.now() > deadline:
                     is_late = True
             except Exception:
                 pass

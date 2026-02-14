@@ -1,9 +1,13 @@
 """
 PostgreSQL Database with SQLAlchemy ORM
 Async support with asyncpg
+
+MUHIM: Barcha vaqtlar NAIVE datetime sifatida saqlanadi.
+Barcha vaqtlar Tashkent mahalliy vaqtini ifodalaydi.
 """
 import re
 import logging
+import pytz
 from datetime import datetime
 from typing import Optional, List, Tuple
 from contextlib import asynccontextmanager
@@ -18,9 +22,17 @@ from sqlalchemy import (
     select, delete, update, func
 )
 
-from config import DATABASE_URL
+from config import DATABASE_URL, TIMEZONE
 
 logger = logging.getLogger(__name__)
+
+
+def _tashkent_now():
+    """Hozirgi Tashkent vaqtini NAIVE datetime sifatida qaytarish.
+    DB default uchun ishlatiladi.
+    """
+    tz = pytz.timezone(TIMEZONE)
+    return datetime.now(tz).replace(tzinfo=None)
 
 # SQLAlchemy Base
 Base = declarative_base()
@@ -38,7 +50,7 @@ class Branch(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False, unique=True)
     address = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=_tashkent_now)
 
     employees = relationship(
         "Employee", back_populates="branch",
@@ -67,7 +79,7 @@ class Employee(Base):
     )
     shift = Column(String(50), nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=_tashkent_now)
 
     branch = relationship("Branch", back_populates="employees")
     task_results = relationship(
@@ -87,7 +99,7 @@ class Task(Base):
     shift = Column(String(50), nullable=False)
     start_time = Column(DateTime, nullable=False)
     deadline = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=_tashkent_now)
     is_active = Column(Boolean, default=True, index=True)
 
     task_branches = relationship(
@@ -145,7 +157,7 @@ class TaskResult(Base):
     result_photo_id = Column(String(500), nullable=True)
     file_unique_id = Column(String(500), nullable=True)
     is_late = Column(Boolean, default=False)
-    submitted_at = Column(DateTime, default=datetime.now)
+    submitted_at = Column(DateTime, default=_tashkent_now)
 
     task = relationship("Task", back_populates="task_results")
     employee = relationship("Employee", back_populates="task_results")
@@ -158,7 +170,7 @@ class UsedPhoto(Base):
     file_unique_id = Column(String(500), unique=True, nullable=False)
     task_id = Column(Integer, nullable=False)
     employee_id = Column(Integer, nullable=False)
-    used_at = Column(DateTime, default=datetime.now)
+    used_at = Column(DateTime, default=_tashkent_now)
 
 
 class SentNotification(Base):
@@ -178,7 +190,7 @@ class SentNotification(Base):
     # ForeignKey yo'q - employee_id=0 admin uchun ishlatiladi
     employee_id = Column(Integer, nullable=False)
     notification_type = Column(String(100), nullable=False)
-    sent_at = Column(DateTime, default=datetime.now)
+    sent_at = Column(DateTime, default=_tashkent_now)
 
 
 # ============== ENGINE SETUP ==============
@@ -558,12 +570,22 @@ async def create_task(
     result_type: str, shift: str, start_time: datetime,
     deadline: datetime, branch_ids: List[int]
 ) -> int:
-    """Yangi vazifa yaratish"""
-    # Agar start_time/deadline string bo'lsa, datetime ga o'tkazish
+    """Yangi vazifa yaratish.
+    start_time va deadline NAIVE datetime bo'lishi kerak (Tashkent vaqti).
+    """
+    # Agar string bo'lsa, datetime ga o'tkazish
     if isinstance(start_time, str):
         start_time = datetime.fromisoformat(start_time)
     if isinstance(deadline, str):
         deadline = datetime.fromisoformat(deadline)
+
+    # TZ-aware bo'lsa, Tashkent vaqtiga o'girib, naive qilish
+    if hasattr(start_time, 'tzinfo') and start_time.tzinfo is not None:
+        tz = pytz.timezone(TIMEZONE)
+        start_time = start_time.astimezone(tz).replace(tzinfo=None)
+    if hasattr(deadline, 'tzinfo') and deadline.tzinfo is not None:
+        tz = pytz.timezone(TIMEZONE)
+        deadline = deadline.astimezone(tz).replace(tzinfo=None)
 
     async with get_session() as session:
         task = Task(
@@ -626,10 +648,18 @@ async def update_task(
         if start_time:
             if isinstance(start_time, str):
                 start_time = datetime.fromisoformat(start_time)
+            # TZ-aware bo'lsa, Tashkent vaqtiga o'girib, naive qilish
+            if hasattr(start_time, 'tzinfo') and start_time.tzinfo is not None:
+                tz = pytz.timezone(TIMEZONE)
+                start_time = start_time.astimezone(tz).replace(tzinfo=None)
             task.start_time = start_time
         if deadline:
             if isinstance(deadline, str):
                 deadline = datetime.fromisoformat(deadline)
+            # TZ-aware bo'lsa, Tashkent vaqtiga o'girib, naive qilish
+            if hasattr(deadline, 'tzinfo') and deadline.tzinfo is not None:
+                tz = pytz.timezone(TIMEZONE)
+                deadline = deadline.astimezone(tz).replace(tzinfo=None)
             task.deadline = deadline
 
         await session.commit()
@@ -843,7 +873,7 @@ async def submit_task_result(
                         except ValueError:
                             continue
             if isinstance(deadline, datetime):
-                if datetime.now() > deadline:
+                if _tashkent_now() > deadline:
                     is_late = True
 
         # Natijani saqlash

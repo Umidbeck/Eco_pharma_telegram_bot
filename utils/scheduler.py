@@ -25,7 +25,8 @@ async def check_task_notifications(bot):
     try:
         tasks = await db.get_active_tasks()
         tz = pytz.timezone(TIMEZONE)
-        now = datetime.now(tz)
+        # NAIVE Tashkent vaqti - DB dagi vaqtlar bilan taqqoslash uchun
+        now = datetime.now(tz).replace(tzinfo=None)
 
         for task in tasks:
             try:
@@ -50,10 +51,11 @@ async def check_task_notifications(bot):
                 else:
                     deadline = datetime.fromisoformat(deadline_str)
 
-                if start_time.tzinfo is None:
-                    start_time = tz.localize(start_time)
-                if deadline.tzinfo is None:
-                    deadline = tz.localize(deadline)
+                # Naive qilish (agar tz-aware bo'lsa)
+                if start_time.tzinfo is not None:
+                    start_time = start_time.astimezone(tz).replace(tzinfo=None)
+                if deadline.tzinfo is not None:
+                    deadline = deadline.astimezone(tz).replace(tzinfo=None)
 
                 employees = await db.get_employees_for_task(task['id'])
 
@@ -235,7 +237,8 @@ async def recreate_daily_tasks(bot):
     try:
         daily_tasks = await db.get_daily_tasks()
         tz = pytz.timezone(TIMEZONE)
-        now = datetime.now(tz)
+        # NAIVE Tashkent vaqti
+        now = datetime.now(tz).replace(tzinfo=None)
 
         for task in daily_tasks:
             try:
@@ -264,8 +267,9 @@ async def recreate_daily_tasks(bot):
                 else:
                     deadline = datetime.fromisoformat(deadline_str)
 
-                new_start = tz.localize(datetime(now.year, now.month, now.day, start_time.hour, start_time.minute))
-                new_deadline = tz.localize(datetime(now.year, now.month, now.day, deadline.hour, deadline.minute))
+                # NAIVE datetime - Tashkent mahalliy vaqti
+                new_start = datetime(now.year, now.month, now.day, start_time.hour, start_time.minute)
+                new_deadline = datetime(now.year, now.month, now.day, deadline.hour, deadline.minute)
 
                 if new_deadline <= new_start:
                     new_deadline += timedelta(days=1)
