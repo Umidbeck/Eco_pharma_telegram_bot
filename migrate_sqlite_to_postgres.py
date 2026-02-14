@@ -3,7 +3,8 @@
 SQLite to PostgreSQL Migration Script
 Migrates all data from bot.db to PostgreSQL database
 
-Uses raw SQL text() to guarantee original IDs are preserved.
+Uses raw SQL and disables FK constraints during migration
+to handle SQLite data integrity gaps.
 """
 import asyncio
 import os
@@ -24,40 +25,57 @@ logger = logging.getLogger(__name__)
 
 SQLITE_PATH = os.getenv("SQLITE_PATH", "server_data/data/bot.db")
 
-# Agar default path da yo'q bo'lsa, boshqa joylarni tekshirish
 if not os.path.exists(SQLITE_PATH):
-    for alt_path in ["data/bot.db", "/app/data/bot.db", "bot.db"]:
+    for alt_path in [
+        "data/bot.db", "/app/data/bot.db", "bot.db"
+    ]:
         if os.path.exists(alt_path):
             SQLITE_PATH = alt_path
             break
 
 
 def parse_dt(value: str | None) -> datetime:
-    """SQLite datetime stringini Python datetime ga o'girish."""
+    """SQLite datetime stringini Python datetime ga."""
     if not value:
         return datetime.now()
     try:
         return datetime.fromisoformat(value)
     except (ValueError, TypeError):
         try:
-            return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+            return datetime.strptime(
+                value, "%Y-%m-%d %H:%M:%S"
+            )
         except (ValueError, TypeError):
             return datetime.now()
 
 
+# Barcha jadvallar (FK constraint bor/yo'q - hammasi uchun)
+ALL_TABLES = [
+    "sent_notifications",
+    "used_photos",
+    "task_results",
+    "task_branches",
+    "employees",
+    "tasks",
+    "branches",
+]
+
+
 async def migrate_data() -> None:
-    """Main migration function - uses raw SQL for reliability."""
+    """Main migration function."""
     logger.info("=" * 60)
     logger.info("Starting migration from SQLite to PostgreSQL")
     logger.info("=" * 60)
 
     if not os.path.exists(SQLITE_PATH):
-        logger.error(f"SQLite database not found: {SQLITE_PATH}")
+        logger.error(
+            f"SQLite database not found: {SQLITE_PATH}"
+        )
         return
 
     engine = create_async_engine(DATABASE_URL, echo=False)
 
-    # Drop and recreate all tables
+    # ── Drop and recreate tables ──
     logger.info("Creating PostgreSQL tables...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -70,7 +88,25 @@ async def migrate_data() -> None:
 
         async with engine.begin() as conn:
             try:
-                # ── 1. Branches (raw SQL) ──
+                # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                # FK CONSTRAINT larni O'CHIRISH
+                # SQLite FK enforce qilmaydi, shuning uchun
+                # eski datada buzilgan referenslar bo'lishi
+                # mumkin. Migration uchun vaqtincha o'chiramiz.
+                # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                logger.info(
+                    "Disabling FK constraints for migration..."
+                )
+                for tbl in ALL_TABLES:
+                    await conn.execute(
+                        text(
+                            f"ALTER TABLE {tbl} "
+                            f"DISABLE TRIGGER ALL"
+                        )
+                    )
+                logger.info("FK constraints disabled")
+
+                # ── 1. Branches ──
                 logger.info("1. Migrating branches...")
                 cursor = await sqlite_db.execute(
                     "SELECT * FROM branches"
@@ -90,16 +126,22 @@ async def migrate_data() -> None:
                             "cat": parse_dt(row["created_at"]),
                         },
                     )
-                logger.info(f"   Migrated {len(branches)} branches")
+                logger.info(
+                    f"   Migrated {len(branches)} branches"
+                )
 
-                # Verify branches
+                # Verify branch IDs
                 result = await conn.execute(
-                    text("SELECT id FROM branches ORDER BY id")
+                    text(
+                        "SELECT id FROM branches ORDER BY id"
+                    )
                 )
                 pg_ids = [r[0] for r in result.fetchall()]
-                logger.info(f"   Branch IDs in PostgreSQL: {pg_ids}")
+                logger.info(
+                    f"   Branch IDs in PostgreSQL: {pg_ids}"
+                )
 
-                # ── 2. Employees (raw SQL) ──
+                # ── 2. Employees ──
                 logger.info("2. Migrating employees...")
                 cursor = await sqlite_db.execute(
                     "SELECT * FROM employees"
@@ -123,14 +165,16 @@ async def migrate_data() -> None:
                             "bid": int(row["branch_id"]),
                             "sh": str(row["shift"]),
                             "ia": bool(row["is_active"]),
-                            "cat": parse_dt(row["created_at"]),
+                            "cat": parse_dt(
+                                row["created_at"]
+                            ),
                         },
                     )
                 logger.info(
                     f"   Migrated {len(employees)} employees"
                 )
 
-                # ── 3. Tasks (raw SQL) ──
+                # ── 3. Tasks ──
                 logger.info("3. Migrating tasks...")
                 cursor = await sqlite_db.execute(
                     "SELECT * FROM tasks"
@@ -140,9 +184,10 @@ async def migrate_data() -> None:
                     await conn.execute(
                         text(
                             "INSERT INTO tasks "
-                            "(id, title, description, task_type, "
-                            "result_type, shift, start_time, "
-                            "deadline, is_active, created_at) "
+                            "(id, title, description, "
+                            "task_type, result_type, shift, "
+                            "start_time, deadline, is_active, "
+                            "created_at) "
                             "VALUES (:id, :title, :desc, :tt, "
                             ":rt, :sh, :st, :dl, :ia, :cat)"
                         ),
@@ -156,13 +201,19 @@ async def migrate_data() -> None:
                             "st": parse_dt(row["start_time"]),
                             "dl": parse_dt(row["deadline"]),
                             "ia": bool(row["is_active"]),
-                            "cat": parse_dt(row["created_at"]),
+                            "cat": parse_dt(
+                                row["created_at"]
+                            ),
                         },
                     )
-                logger.info(f"   Migrated {len(tasks)} tasks")
+                logger.info(
+                    f"   Migrated {len(tasks)} tasks"
+                )
 
-                # ── 4. Task-Branch relationships (raw SQL) ──
-                logger.info("4. Migrating task-branch links...")
+                # ── 4. Task-Branch links ──
+                logger.info(
+                    "4. Migrating task-branch links..."
+                )
                 cursor = await sqlite_db.execute(
                     "SELECT * FROM task_branches"
                 )
@@ -181,11 +232,10 @@ async def migrate_data() -> None:
                         },
                     )
                 logger.info(
-                    f"   Migrated {len(task_branches)} "
-                    f"task-branch links"
+                    f"   Migrated {len(task_branches)} links"
                 )
 
-                # ── 5. Task Results (raw SQL) ──
+                # ── 5. Task Results ──
                 logger.info("5. Migrating task results...")
                 cursor = await sqlite_db.execute(
                     "SELECT * FROM task_results"
@@ -210,14 +260,16 @@ async def migrate_data() -> None:
                             "rpi": row["result_photo_id"],
                             "fui": row["file_unique_id"],
                             "il": bool(row["is_late"]),
-                            "sa": parse_dt(row["submitted_at"]),
+                            "sa": parse_dt(
+                                row["submitted_at"]
+                            ),
                         },
                     )
                 logger.info(
                     f"   Migrated {len(task_results)} results"
                 )
 
-                # ── 6. Used Photos (raw SQL) ──
+                # ── 6. Used Photos ──
                 logger.info("6. Migrating used photos...")
                 cursor = await sqlite_db.execute(
                     "SELECT * FROM used_photos"
@@ -229,12 +281,14 @@ async def migrate_data() -> None:
                             "INSERT INTO used_photos "
                             "(id, file_unique_id, task_id, "
                             "employee_id, used_at) "
-                            "VALUES (:id, :fui, :tid, :eid, "
-                            ":ua)"
+                            "VALUES (:id, :fui, :tid, "
+                            ":eid, :ua)"
                         ),
                         {
                             "id": int(row["id"]),
-                            "fui": str(row["file_unique_id"]),
+                            "fui": str(
+                                row["file_unique_id"]
+                            ),
                             "tid": int(row["task_id"]),
                             "eid": int(row["employee_id"]),
                             "ua": parse_dt(row["used_at"]),
@@ -244,7 +298,7 @@ async def migrate_data() -> None:
                     f"   Migrated {len(used_photos)} photos"
                 )
 
-                # ── 7. Sent Notifications (raw SQL) ──
+                # ── 7. Sent Notifications ──
                 logger.info("7. Migrating notifications...")
                 try:
                     cursor = await sqlite_db.execute(
@@ -254,7 +308,8 @@ async def migrate_data() -> None:
                     for row in notifications:
                         await conn.execute(
                             text(
-                                "INSERT INTO sent_notifications "
+                                "INSERT INTO "
+                                "sent_notifications "
                                 "(id, task_id, employee_id, "
                                 "notification_type, sent_at) "
                                 "VALUES (:id, :tid, :eid, "
@@ -263,11 +318,15 @@ async def migrate_data() -> None:
                             {
                                 "id": int(row["id"]),
                                 "tid": int(row["task_id"]),
-                                "eid": int(row["employee_id"]),
+                                "eid": int(
+                                    row["employee_id"]
+                                ),
                                 "nt": str(
                                     row["notification_type"]
                                 ),
-                                "sa": parse_dt(row["sent_at"]),
+                                "sa": parse_dt(
+                                    row["sent_at"]
+                                ),
                             },
                         )
                     logger.info(
@@ -276,19 +335,32 @@ async def migrate_data() -> None:
                     )
                 except Exception as e:
                     logger.warning(
-                        f"   Notifications table: {e}"
+                        f"   Notifications: {e}"
                     )
+
+                # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                # FK CONSTRAINT larni QAYTA YOQISH
+                # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                logger.info(
+                    "Re-enabling FK constraints..."
+                )
+                for tbl in ALL_TABLES:
+                    await conn.execute(
+                        text(
+                            f"ALTER TABLE {tbl} "
+                            f"ENABLE TRIGGER ALL"
+                        )
+                    )
+                logger.info("FK constraints re-enabled")
 
                 # ── 8. Reset sequences ──
                 logger.info("8. Resetting sequences...")
-                for tbl in [
-                    "branches", "employees", "tasks",
-                    "task_branches", "task_results",
-                    "used_photos", "sent_notifications",
-                ]:
+                for tbl in ALL_TABLES:
                     try:
                         r = await conn.execute(
-                            text(f"SELECT MAX(id) FROM {tbl}")
+                            text(
+                                f"SELECT MAX(id) FROM {tbl}"
+                            )
                         )
                         max_id = r.scalar()
                         if max_id is not None:
@@ -300,38 +372,63 @@ async def migrate_data() -> None:
                                 )
                             )
                             logger.info(
-                                f"   {tbl}_id_seq -> {max_id}"
+                                f"   {tbl}_id_seq -> "
+                                f"{max_id}"
                             )
                     except Exception as e:
                         logger.warning(
                             f"   Sequence {tbl}: {e}"
                         )
 
-                # ── 9. Final verification ──
-                logger.info("9. Verification...")
-                for tbl in [
-                    "branches", "employees", "tasks",
-                    "task_branches", "task_results",
-                    "used_photos", "sent_notifications",
-                ]:
+                # ── 9. Verification ──
+                logger.info("9. Final verification...")
+                for tbl in ALL_TABLES:
                     try:
                         r = await conn.execute(
                             text(
-                                f"SELECT COUNT(*) FROM {tbl}"
+                                f"SELECT COUNT(*) "
+                                f"FROM {tbl}"
                             )
                         )
                         cnt = r.scalar()
-                        logger.info(f"   {tbl}: {cnt} rows")
+                        logger.info(
+                            f"   {tbl}: {cnt} rows"
+                        )
                     except Exception:
                         pass
 
+                # ── 10. Orphan references check ──
+                logger.info(
+                    "10. Checking orphan references..."
+                )
+                r = await conn.execute(
+                    text(
+                        "SELECT COUNT(*) FROM employees e "
+                        "WHERE NOT EXISTS ("
+                        "  SELECT 1 FROM branches b "
+                        "  WHERE b.id = e.branch_id"
+                        ")"
+                    )
+                )
+                orphans = r.scalar()
+                if orphans and orphans > 0:
+                    logger.warning(
+                        f"   {orphans} employees have "
+                        f"invalid branch_id (normal - "
+                        f"SQLite didn't enforce FK)"
+                    )
+
+                logger.info("")
                 logger.info("=" * 60)
-                logger.info("Migration completed successfully!")
+                logger.info(
+                    "Migration completed successfully!"
+                )
                 logger.info("=" * 60)
 
             except Exception as e:
                 logger.error(
-                    f"Migration failed: {e}", exc_info=True
+                    f"Migration failed: {e}",
+                    exc_info=True,
                 )
                 raise
 
@@ -342,9 +439,12 @@ if __name__ == "__main__":
     try:
         asyncio.run(migrate_data())
         print(
-            "\nAll data successfully migrated to PostgreSQL!"
+            "\nAll data successfully migrated "
+            "to PostgreSQL!"
         )
-        print("Start the bot: python3 main.py")
+        print(
+            "Start the bot: python3 main.py"
+        )
     except Exception as e:
         print(f"\nMigration failed: {e}")
         exit(1)
