@@ -66,3 +66,7 @@ get_task_result_by_id = _db_module.get_task_result_by_id
 check_notification_sent = _db_module.check_notification_sent
 mark_notification_sent = _db_module.mark_notification_sent
 clear_task_notifications = _db_module.clear_task_notifications
+clear_all_notifications = _db_module.clear_all_notifications
+clear_all_task_results = _db_module.clear_all_task_results
+clear_all_used_photos = _db_module.clear_all_used_photos
+has_branch_completion = _db_module.has_branch_completion

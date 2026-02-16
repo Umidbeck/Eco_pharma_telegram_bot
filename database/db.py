@@ -1007,3 +1007,51 @@ async def clear_task_notifications(task_id: int) -> bool:
     except Exception as e:
         logger.error(f"clear_task_notifications error: {e}")
         return False
+
+
+async def clear_all_notifications() -> bool:
+    """Barcha bildirishnomalarni tozalash (kunlik qayta tiklash uchun)"""
+    try:
+        await _ensure_notifications_table()
+        async with get_db() as db:
+            await db.execute("DELETE FROM sent_notifications")
+            await db.commit()
+            logger.info("✅ Barcha bildirishnomalar tozalandi")
+            return True
+    except Exception as e:
+        logger.error(f"clear_all_notifications error: {e}")
+        return False
+
+
+async def clear_all_task_results() -> bool:
+    """Barcha vazifa natijalarini tozalash (kunlik qayta tiklash uchun)"""
+    try:
+        async with get_db() as db:
+            cursor = await db.execute("SELECT COUNT(*) FROM task_results")
+            row = await cursor.fetchone()
+            count = row[0] if row else 0
+            
+            await db.execute("DELETE FROM task_results")
+            await db.commit()
+            logger.info(f"✅ {count} ta vazifa natijasi tozalandi")
+            return True
+    except Exception as e:
+        logger.error(f"clear_all_task_results error: {e}")
+        return False
+
+
+async def clear_all_used_photos() -> bool:
+    """Barcha ishlatilgan rasmlarni tozalash (kunlik qayta tiklash uchun)"""
+    try:
+        async with get_db() as db:
+            cursor = await db.execute("SELECT COUNT(*) FROM used_photos")
+            row = await cursor.fetchone()
+            count = row[0] if row else 0
+            
+            await db.execute("DELETE FROM used_photos")
+            await db.commit()
+            logger.info(f"✅ {count} ta ishlatilgan rasm tozalandi")
+            return True
+    except Exception as e:
+        logger.error(f"clear_all_used_photos error: {e}")
+        return False

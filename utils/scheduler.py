@@ -312,6 +312,45 @@ async def recreate_daily_tasks(bot):
         logger.error(f"Daily tasks error: {e}")
 
 
+async def reset_daily_results(bot):
+    """
+    Har kuni soat 01:00 da barcha natijalarni tozalash.
+    Xodimlarga HECH QANDAY xabar yuborilmaydi - faqat ma'lumotlar tozalanadi.
+    
+    MUHIM: Ishlatilgan rasmlar (used_photos) TOZALANMAYDI!
+    Bu xodimlar bir marta yuborgan rasmni qayta yubora olmasligi uchun ABADIY saqlanadi.
+    """
+    try:
+        logger.info("🔄 Kunlik natijalarni qayta tiklash boshlandi...")
+        
+        # Barcha natijalarni tozalash (RASMLAR TOZALANMAYDI!)
+        await db.clear_all_task_results()
+        await db.clear_all_notifications()
+        # await db.clear_all_used_photos()  # BU O'CHIRILDI - rasmlar abadiy saqlanadi!
+        
+        logger.info("✅ Kunlik natijalar muvaffaqiyatli qayta tiklandi!")
+        
+        # Faqat adminlarga xabar yuborish
+        for admin_id in ADMIN_IDS:
+            try:
+                tz = pytz.timezone(TIMEZONE)
+                now = datetime.now(tz)
+                await bot.send_message(
+                    chat_id=admin_id,
+                    text=f"🔄 <b>Kunlik natijalar qayta tiklandi</b>\n\n"
+                         f"⏰ Vaqt: {helpers.format_datetime(now)}\n"
+                         f"✅ Barcha vazifa natijalari 0 ga qaytarildi\n"
+                         f"✅ Bildirishnomalar tozalandi\n"
+                         f"📸 Ishlatilgan rasmlar ABADIY saqlanadi",
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.error(f"Admin notification error: {e}")
+                
+    except Exception as e:
+        logger.error(f"❌ Kunlik natijalarni qayta tiklashda xatolik: {e}")
+
+
 async def setup_scheduler(scheduler: AsyncIOScheduler, bot):
     """Schedulerni sozlash"""
     global _scheduler
@@ -325,16 +364,20 @@ async def setup_scheduler(scheduler: AsyncIOScheduler, bot):
         replace_existing=True
     )
 
-    # Soat 00:00 da kunlik vazifalarni qayta yaratish o'chirildi
-    # scheduler.add_job(
-    #     recreate_daily_tasks,
-    #     CronTrigger(hour=0, minute=1),
-    #     args=[bot],
-    #     id='recreate_daily_tasks',
-    #     replace_existing=True
-    # )
+    # Soat 01:00 da kunlik natijalarni 0 ga qaytarish
+    tz = pytz.timezone(TIMEZONE)
+    scheduler.add_job(
+        reset_daily_results,
+        CronTrigger(hour=1, minute=0, timezone=tz),
+        args=[bot],
+        id='reset_daily_results',
+        replace_existing=True
+    )
 
     logger.info("✅ Scheduler setup completed")
+    logger.info("📋 Scheduled jobs:")
+    logger.info("   • check_notifications: har 1 daqiqada")
+    logger.info("   • reset_daily_results: har kuni soat 01:00 da")
 
 
 def stop_scheduler():

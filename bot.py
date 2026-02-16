@@ -33,8 +33,11 @@ async def on_startup():
     await db.init_db()
     logger.info("Ma'lumotlar bazasi tayyor")
 
-    # Schedulerni ishga tushirish
-    setup_scheduler(bot)
+    # Schedulerni yaratish va ishga tushirish
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    scheduler = AsyncIOScheduler()
+    await setup_scheduler(scheduler, bot)
+    scheduler.start()
     logger.info("Scheduler ishga tushdi")
 
     logger.info("Bot muvaffaqiyatli ishga tushdi!")

@@ -1233,3 +1233,57 @@ async def clear_task_notifications(task_id: int) -> bool:
     except Exception as e:
         logger.error(f"clear_task_notifications error: {e}")
         return False
+
+
+async def clear_all_notifications() -> bool:
+    """Barcha bildirishnomalarni tozalash (kunlik qayta tiklash uchun)"""
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(func.count(SentNotification.id))
+            )
+            count = result.scalar() or 0
+            
+            await session.execute(delete(SentNotification))
+            await session.commit()
+            logger.info(f"✅ {count} ta bildirishnoma tozalandi")
+            return True
+    except Exception as e:
+        logger.error(f"clear_all_notifications error: {e}")
+        return False
+
+
+async def clear_all_task_results() -> bool:
+    """Barcha vazifa natijalarini tozalash (kunlik qayta tiklash uchun)"""
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(func.count(TaskResult.id))
+            )
+            count = result.scalar() or 0
+            
+            await session.execute(delete(TaskResult))
+            await session.commit()
+            logger.info(f"✅ {count} ta vazifa natijasi tozalandi")
+            return True
+    except Exception as e:
+        logger.error(f"clear_all_task_results error: {e}")
+        return False
+
+
+async def clear_all_used_photos() -> bool:
+    """Barcha ishlatilgan rasmlarni tozalash (kunlik qayta tiklash uchun)"""
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(func.count(UsedPhoto.id))
+            )
+            count = result.scalar() or 0
+            
+            await session.execute(delete(UsedPhoto))
+            await session.commit()
+            logger.info(f"✅ {count} ta ishlatilgan rasm tozalandi")
+            return True
+    except Exception as e:
+        logger.error(f"clear_all_used_photos error: {e}")
+        return False
