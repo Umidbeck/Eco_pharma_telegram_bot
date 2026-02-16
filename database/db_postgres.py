@@ -846,7 +846,7 @@ async def get_daily_tasks() -> List[dict]:
 
 async def submit_task_result(
     task_id: int, employee_id: int,
-    result_text: str = None, result_photo_id: str = None,
+    result_text: str = None,
     file_unique_id: str = None
 ) -> Tuple[int, int]:
     """Vazifa natijasini yuborish"""
@@ -881,7 +881,6 @@ async def submit_task_result(
             task_id=task_id,
             employee_id=employee_id,
             result_text=result_text,
-            result_photo_id=result_photo_id,
             file_unique_id=file_unique_id,
             is_late=is_late
         )
@@ -912,7 +911,7 @@ async def submit_task_result(
 
 async def submit_task_result_by_telegram_id(
     task_id: int, telegram_id: int,
-    result_text: str = None, result_photo_id: str = None,
+    result_text: str = None,
     file_unique_id: str = None
 ) -> Tuple[int, int]:
     """Telegram ID orqali vazifa natijasini yuborish"""
@@ -928,7 +927,7 @@ async def submit_task_result_by_telegram_id(
             return 0, 0
 
     return await submit_task_result(
-        task_id, emp_id, result_text, result_photo_id, file_unique_id
+        task_id, emp_id, result_text, file_unique_id
     )
 
 

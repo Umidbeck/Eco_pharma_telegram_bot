@@ -539,8 +539,7 @@ async def submit_photo_received(message: Message, state: FSMContext):
     result_id, position = await db.submit_task_result(
         task_id=task_id,
         employee_id=employee['id'],
-        result_photo_id=photo.file_id,
-        file_unique_id=file_unique_id
+        file_unique_id=file_unique_id  # Faqat file_unique_id saqlanadi!
     )
 
     await state.clear()

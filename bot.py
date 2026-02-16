@@ -36,7 +36,7 @@ async def on_startup():
     # Schedulerni yaratish va ishga tushirish
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
     scheduler = AsyncIOScheduler()
-    await setup_scheduler(scheduler, bot)
+    setup_scheduler(scheduler, bot)  # AWAIT O'CHIRILDI - setup_scheduler async emas!
     scheduler.start()
     logger.info("Scheduler ishga tushdi")
 

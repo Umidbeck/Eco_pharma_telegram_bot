@@ -681,7 +681,7 @@ async def get_daily_tasks() -> List[dict]:
 # ============== NATIJALAR ==============
 
 async def submit_task_result(task_id: int, employee_id: int, result_text: str = None,
-                             result_photo_id: str = None, file_unique_id: str = None) -> Tuple[int, int]:
+                             file_unique_id: str = None) -> Tuple[int, int]:
     """Vazifa natijasini yuborish"""
     async with get_db() as db:
         # Deadline o'tganligini tekshirish
@@ -711,9 +711,9 @@ async def submit_task_result(task_id: int, employee_id: int, result_text: str = 
 
         # Natijani saqlash
         cursor = await db.execute(
-            """INSERT INTO task_results (task_id, employee_id, result_text, result_photo_id, file_unique_id, is_late)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (task_id, employee_id, result_text, result_photo_id, file_unique_id, is_late)
+            """INSERT INTO task_results (task_id, employee_id, result_text, file_unique_id, is_late)
+               VALUES (?, ?, ?, ?, ?)""",
+            (task_id, employee_id, result_text, file_unique_id, is_late)
         )
         result_id = cursor.lastrowid
 
@@ -737,7 +737,7 @@ async def submit_task_result(task_id: int, employee_id: int, result_text: str = 
 
 
 async def submit_task_result_by_telegram_id(task_id: int, telegram_id: int, result_text: str = None,
-                                             result_photo_id: str = None, file_unique_id: str = None) -> Tuple[int, int]:
+                                             file_unique_id: str = None) -> Tuple[int, int]:
     """Telegram ID orqali vazifa natijasini yuborish"""
     async with get_db() as db:
         cursor = await db.execute(
@@ -750,7 +750,7 @@ async def submit_task_result_by_telegram_id(task_id: int, telegram_id: int, resu
 
         employee_id = emp['id']
 
-    return await submit_task_result(task_id, employee_id, result_text, result_photo_id, file_unique_id)
+    return await submit_task_result(task_id, employee_id, result_text, file_unique_id)
 
 
 async def check_photo_used(file_unique_id: str) -> bool:
