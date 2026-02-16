@@ -364,11 +364,11 @@ async def setup_scheduler(scheduler: AsyncIOScheduler, bot):
         replace_existing=True
     )
 
-    # Soat 01:15 da kunlik natijalarni 0 ga qaytarish
+    # Soat 01:20 da kunlik natijalarni 0 ga qaytarish
     tz = pytz.timezone(TIMEZONE)
     scheduler.add_job(
         reset_daily_results,
-        CronTrigger(hour=1, minute=15, timezone=tz),  # 01:15 ga o'zgartirildi
+        CronTrigger(hour=1, minute=20, timezone=tz),  # 01:20 ga o'zgartirildi
         args=[bot],
         id='reset_daily_results',
         replace_existing=True
@@ -377,7 +377,7 @@ async def setup_scheduler(scheduler: AsyncIOScheduler, bot):
     logger.info("✅ Scheduler setup completed")
     logger.info("📋 Scheduled jobs:")
     logger.info("   • check_notifications: har 1 daqiqada")
-    logger.info("   • reset_daily_results: har kuni soat 01:15 da")
+    logger.info("   • reset_daily_results: har kuni soat 01:20 da")
 
 
 def stop_scheduler():
