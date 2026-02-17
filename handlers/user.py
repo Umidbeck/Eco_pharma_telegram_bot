@@ -393,7 +393,6 @@ async def process_photo_result(message: Message, state: FSMContext, bot: Bot):
         result_id, position = await db.submit_task_result_by_telegram_id(
             task_id=task_id,
             telegram_id=message.from_user.id,
-            result_photo_id=photo_file_id,
             file_unique_id=photo_unique_id
         )
 
