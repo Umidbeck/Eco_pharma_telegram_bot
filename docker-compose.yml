@@ -4,7 +4,7 @@ services:
     container_name: eco_pharm_postgres
     restart: unless-stopped
     ports:
-      - "5433:5432"  # Custom port to avoid conflict
+      - "5433:5432"
     environment:
       POSTGRES_DB: eco_pharm_bot
       POSTGRES_USER: eco_pharm
@@ -17,6 +17,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - eco_pharm_network
+
+  bot:
+    build: .
+    container_name: eco_pharm_bot
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Docker network ichida postgres service nomini ishlatish
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
     networks:
       - eco_pharm_network
 

@@ -42,7 +42,7 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+if ! docker compose version &> /dev/null; then
     log_error "Docker Compose topilmadi! Iltimos, Docker Compose o'rnating."
     exit 1
 fi
@@ -68,33 +68,39 @@ log_info "Data papkalarini yaratish..."
 mkdir -p data logs
 chmod 777 data logs
 
-# Stop existing container
+# Stop existing containers
 log_info "Mavjud konteynerlarni to'xtatish..."
-docker-compose down 2>/dev/null || docker compose down 2>/dev/null || true
+docker compose down 2>/dev/null || true
+
+# Also kill any manual bot processes
+pkill -f "python3 main.py" 2>/dev/null || true
 
 # Build image
 log_info "Docker image qurish..."
-docker-compose build --no-cache 2>/dev/null || docker compose build --no-cache
+docker compose build --no-cache
 
-# Start container
+# Start containers
 log_info "Konteynerlarni ishga tushirish..."
-docker-compose up -d 2>/dev/null || docker compose up -d
+docker compose up -d
 
 # Wait for startup
 log_info "Bot ishga tushishini kutish..."
-sleep 5
+sleep 10
 
 # Check status
-if docker ps | grep -q "eco_pharm_telegram_bot"; then
+if docker ps | grep -q "eco_pharm_bot"; then
     log_success "Bot muvaffaqiyatli ishga tushdi!"
     echo ""
+    docker compose ps
+    echo ""
     echo "Foydali buyruqlar:"
-    echo "  • Loglarni ko'rish:    docker logs -f eco_pharm_telegram_bot"
-    echo "  • Statusni tekshirish: docker ps"
-    echo "  • To'xtatish:          docker-compose down"
-    echo "  • Qayta ishga tushirish: docker-compose restart"
+    echo "  • Loglarni ko'rish:      docker compose logs -f bot"
+    echo "  • Statusni tekshirish:   docker compose ps"
+    echo "  • To'xtatish:            docker compose down"
+    echo "  • Qayta ishga tushirish: docker compose restart bot"
+    echo "  • Yangilash:             git pull && docker compose up -d --build bot"
 else
     log_error "Bot ishga tushmadi! Loglarni tekshiring:"
-    docker logs eco_pharm_telegram_bot 2>/dev/null || true
+    docker compose logs bot 2>/dev/null || true
     exit 1
 fi

@@ -67,8 +67,8 @@ RUN mkdir -p ${APP_HOME}/data ${APP_HOME}/logs \
     && chmod 777 ${APP_HOME}/logs
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import asyncio; from database.db import get_db; asyncio.run(get_db().__aenter__())" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python -c "import asyncio; from database.db_postgres import engine; asyncio.run(engine.dispose())" || exit 1
 
 # Non-root user ga o'tish
 USER ${APP_USER}
