@@ -681,7 +681,7 @@ async def get_daily_tasks() -> List[dict]:
 # ============== NATIJALAR ==============
 
 async def submit_task_result(task_id: int, employee_id: int, result_text: str = None,
-                             file_unique_id: str = None) -> Tuple[int, int]:
+                             file_unique_id: str = None) -> Tuple[int, int, bool]:
     """Vazifa natijasini yuborish"""
     async with get_db() as db:
         # Deadline o'tganligini tekshirish
@@ -704,7 +704,8 @@ async def submit_task_result(task_id: int, employee_id: int, result_text: str = 
                 else:
                     deadline_dt = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
 
-                if datetime.now() > deadline_dt:
+                from utils import helpers
+                if helpers.now() > deadline_dt:
                     is_late = 1
             except Exception:
                 is_late = 0
@@ -733,11 +734,11 @@ async def submit_task_result(task_id: int, employee_id: int, result_text: str = 
         position = count[0] if count else 1
 
         await db.commit()
-        return result_id, position
+        return result_id, position, bool(is_late)
 
 
 async def submit_task_result_by_telegram_id(task_id: int, telegram_id: int, result_text: str = None,
-                                             file_unique_id: str = None) -> Tuple[int, int]:
+                                             file_unique_id: str = None) -> Tuple[int, int, bool]:
     """Telegram ID orqali vazifa natijasini yuborish"""
     async with get_db() as db:
         cursor = await db.execute(
@@ -746,7 +747,7 @@ async def submit_task_result_by_telegram_id(task_id: int, telegram_id: int, resu
         )
         emp = await cursor.fetchone()
         if not emp:
-            return 0, 0
+            return 0, 0, False
 
         employee_id = emp['id']
 

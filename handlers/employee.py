@@ -481,7 +481,7 @@ async def submit_text_received(message: Message, state: FSMContext):
 
     employee = await db.get_employee_by_telegram_id(message.from_user.id)
 
-    result_id, position = await db.submit_task_result(
+    result_id, position, is_late = await db.submit_task_result(
         task_id=task_id,
         employee_id=employee['id'],
         result_text=message.text
@@ -536,7 +536,7 @@ async def submit_photo_received(message: Message, state: FSMContext):
 
     employee = await db.get_employee_by_telegram_id(message.from_user.id)
 
-    result_id, position = await db.submit_task_result(
+    result_id, position, is_late = await db.submit_task_result(
         task_id=task_id,
         employee_id=employee['id'],
         file_unique_id=file_unique_id  # Faqat file_unique_id saqlanadi!

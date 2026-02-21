@@ -848,7 +848,7 @@ async def submit_task_result(
     task_id: int, employee_id: int,
     result_text: str = None,
     file_unique_id: str = None
-) -> Tuple[int, int]:
+) -> Tuple[int, int, bool]:
     """Vazifa natijasini yuborish"""
     async with get_session() as session:
         # Deadline o'tganligini tekshirish
@@ -906,14 +906,14 @@ async def submit_task_result(
         position = result.scalar() or 1
 
         await session.commit()
-        return result_id, position
+        return result_id, position, is_late
 
 
 async def submit_task_result_by_telegram_id(
     task_id: int, telegram_id: int,
     result_text: str = None,
     file_unique_id: str = None
-) -> Tuple[int, int]:
+) -> Tuple[int, int, bool]:
     """Telegram ID orqali vazifa natijasini yuborish"""
     async with get_session() as session:
         result = await session.execute(
@@ -924,7 +924,7 @@ async def submit_task_result_by_telegram_id(
         )
         emp_id = result.scalar_one_or_none()
         if not emp_id:
-            return 0, 0
+            return 0, 0, False
 
     return await submit_task_result(
         task_id, emp_id, result_text, file_unique_id

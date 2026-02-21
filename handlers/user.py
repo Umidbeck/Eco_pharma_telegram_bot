@@ -259,7 +259,7 @@ async def process_text_result(message: Message, state: FSMContext, bot: Bot):
 
     try:
         # Natijani yuborish
-        result_id, position = await db.submit_task_result_by_telegram_id(
+        result_id, position, is_late = await db.submit_task_result_by_telegram_id(
             task_id=task_id,
             telegram_id=message.from_user.id,
             result_text=message.text
@@ -273,26 +273,7 @@ async def process_text_result(message: Message, state: FSMContext, bot: Bot):
             await state.clear()
             return
 
-        # Deadline tekshiruvi
         task = await db.get_task(task_id)
-        is_late = False
-
-        if task:
-            try:
-                deadline_str = task['deadline']
-                for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"]:
-                    try:
-                        deadline = datetime.strptime(deadline_str, fmt)
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    deadline = datetime.fromisoformat(deadline_str)
-
-                if helpers.now() > deadline:
-                    is_late = True
-            except Exception:
-                pass
 
         # Xodimga javob
         position_emoji = helpers.get_position_emoji(position)
@@ -390,7 +371,7 @@ async def process_photo_result(message: Message, state: FSMContext, bot: Bot):
 
     try:
         # Natijani yuborish
-        result_id, position = await db.submit_task_result_by_telegram_id(
+        result_id, position, is_late = await db.submit_task_result_by_telegram_id(
             task_id=task_id,
             telegram_id=message.from_user.id,
             file_unique_id=photo_unique_id
@@ -404,26 +385,7 @@ async def process_photo_result(message: Message, state: FSMContext, bot: Bot):
             await state.clear()
             return
 
-        # Deadline tekshiruvi
         task = await db.get_task(task_id)
-        is_late = False
-
-        if task:
-            try:
-                deadline_str = task['deadline']
-                for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"]:
-                    try:
-                        deadline = datetime.strptime(deadline_str, fmt)
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    deadline = datetime.fromisoformat(deadline_str)
-
-                if helpers.now() > deadline:
-                    is_late = True
-            except Exception:
-                pass
 
         position_emoji = helpers.get_position_emoji(position)
 
