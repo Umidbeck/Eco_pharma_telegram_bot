@@ -853,12 +853,14 @@ async def submit_task_result(
     async with get_session() as session:
         # Deadline o'tganligini tekshirish
         result = await session.execute(
-            select(Task.deadline).where(Task.id == task_id)
+            select(Task.deadline, Task.task_type).where(Task.id == task_id)
         )
-        deadline = result.scalar_one_or_none()
-
+        row = result.first()
+        
         is_late = False
-        if deadline:
+        if row and row[0]:
+            deadline = row[0]
+            task_type = row[1]
             # deadline datetime yoki string bo'lishi mumkin
             if isinstance(deadline, str):
                 try:
@@ -873,7 +875,18 @@ async def submit_task_result(
                         except ValueError:
                             continue
             if isinstance(deadline, datetime):
-                if _tashkent_now() > deadline:
+                now_tashkent = _tashkent_now()
+                # Har kunlik vazifa uchun sanani bugungi kunga moslash (agar eskirgan bo'lsa)
+                if task_type == 'har_kunlik':
+                    if deadline.date() < now_tashkent.date():
+                        # Kunni yangilash
+                        deadline = deadline.replace(
+                            year=now_tashkent.year, 
+                            month=now_tashkent.month, 
+                            day=now_tashkent.day
+                        )
+                
+                if now_tashkent > deadline:
                     is_late = True
 
         # Natijani saqlash

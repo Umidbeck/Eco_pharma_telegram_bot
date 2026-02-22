@@ -56,6 +56,15 @@ async def check_task_notifications(bot):
                     start_time = start_time.astimezone(tz).replace(tzinfo=None)
                 if deadline.tzinfo is not None:
                     deadline = deadline.astimezone(tz).replace(tzinfo=None)
+                    
+                # Har kunlik vazifa uchun sanani bugungi kunga moslash
+                if task.get('task_type') == 'har_kunlik':
+                    if start_time.date() < now.date():
+                        start_time = start_time.replace(year=now.year, month=now.month, day=now.day)
+                    if deadline.date() < now.date() or deadline <= start_time:
+                        deadline = deadline.replace(year=now.year, month=now.month, day=now.day)
+                    if deadline <= start_time:
+                        deadline += timedelta(days=1)
 
                 employees = await db.get_employees_for_task(task['id'])
 

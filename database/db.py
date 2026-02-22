@@ -686,7 +686,7 @@ async def submit_task_result(task_id: int, employee_id: int, result_text: str = 
     async with get_db() as db:
         # Deadline o'tganligini tekshirish
         cursor = await db.execute(
-            "SELECT deadline FROM tasks WHERE id = ?",
+            "SELECT deadline, task_type FROM tasks WHERE id = ?",
             (task_id,)
         )
         task = await cursor.fetchone()
@@ -694,7 +694,8 @@ async def submit_task_result(task_id: int, employee_id: int, result_text: str = 
         is_late = 0
         if task:
             try:
-                deadline_str = task[0]
+                deadline_str = task['deadline']
+                task_type = task['task_type']
                 for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"]:
                     try:
                         deadline_dt = datetime.strptime(deadline_str, fmt)
@@ -705,7 +706,18 @@ async def submit_task_result(task_id: int, employee_id: int, result_text: str = 
                     deadline_dt = datetime.fromisoformat(deadline_str.replace('Z', '+00:00'))
 
                 from utils import helpers
-                if helpers.now() > deadline_dt:
+                now_tashkent = helpers.now()
+                
+                # Har kunlik vazifa uchun sanani bugungi kunga moslash (agar eskirgan bo'lsa)
+                if task_type == 'har_kunlik':
+                    if deadline_dt.date() < now_tashkent.date():
+                        deadline_dt = deadline_dt.replace(
+                            year=now_tashkent.year, 
+                            month=now_tashkent.month, 
+                            day=now_tashkent.day
+                        )
+                
+                if now_tashkent > deadline_dt:
                     is_late = 1
             except Exception:
                 is_late = 0
